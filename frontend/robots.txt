@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://klikku.arjism.com/sitemap.xml
