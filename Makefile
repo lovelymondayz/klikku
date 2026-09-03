@@ -1,25 +1,32 @@
-.PHONY: build up down logs migrate seed
+.PHONY: dev build up down logs clean deploy
 
+# Start development environment
+dev:
+	cd backend && go run . &
+	cd frontend && npm run dev
+	@echo "Backend: http://localhost:8083 | Frontend: http://localhost:3009"
+
+# Production build
 build:
-	docker compose build --no-cache backend frontend
+	cd frontend && npm ci && npm run build
+	cd backend && go build -o klikku-api .
+	@echo "Build complete"
 
+# Docker operations
 up:
-	docker compose up -d --force-recreate
+	docker compose up -d --build
+	@echo "Klikku running — FE: http://localhost:3009, BE: http://localhost:8083"
 
 down:
 	docker compose down
 
+# Utility
 logs:
-	docker compose logs -f backend frontend
+	docker compose logs -f
 
-migrate:
-	docker compose exec backend go run cmd/migrate/main.go
+clean:
+	docker compose down -v
+	rm -rf frontend/dist backend/klikku-api
 
-seed:
-	docker compose exec backend go run cmd/seed/main.go
-
-dev-backend:
-	cd backend && go run cmd/server/main.go
-
-dev-frontend:
-	cd frontend && npm run dev
+deploy:
+	./update.sh

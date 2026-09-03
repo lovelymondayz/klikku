@@ -5,3 +5,6 @@ COPY server .
 COPY migrations/ ./migrations/
 EXPOSE 8083
 CMD ["./server"]
+
+# Run as non-root
+USER 1000:1000
