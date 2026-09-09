@@ -3,6 +3,8 @@ services:
     image: postgres:16-alpine
     container_name: klikku-postgres
     restart: unless-stopped
+    env_file:
+      - .env
     environment:
       POSTGRES_DB: ${DB_NAME:-klikku}
       POSTGRES_USER: ${DB_USER:-klikku}
@@ -16,6 +18,11 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
 
   backend:
     build:
@@ -24,7 +31,7 @@ services:
     container_name: klikku-backend
     restart: unless-stopped
     env_file:
-      - ./backend/.env
+      - .env
     depends_on:
       postgres:
         condition: service_healthy
@@ -32,6 +39,11 @@ services:
       - "${BACKEND_PORT:-8083}:8083"
     volumes:
       - storage_data:/app/storage
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
 
   frontend:
     build:
@@ -43,6 +55,11 @@ services:
       - backend
     ports:
       - "${FRONTEND_PORT:-3009}:80"
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
 
 volumes:
   postgres_data:
