@@ -26,7 +26,7 @@ export default function CelebrationScreen() {
   }, [])
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-pink-200 via-purple-100 to-blue-200 overflow-hidden relative">
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary-subtle via-surface-alt to-info-subtle overflow-hidden relative">
       {/* Celebration particles */}
       {particles.map((p) => (
         <motion.div
@@ -67,7 +67,7 @@ export default function CelebrationScreen() {
           <PartyPopper size={80} className="mx-auto text-pink-500 mb-6" />
         </motion.div>
         <h1 className="text-5xl font-bold mb-4">Congratulations! 🎉</h1>
-        <p className="text-xl text-gray-600 mb-8">Your photos are being processed</p>
+        <p className="text-xl text-text-muted mb-8">Your photos are being processed</p>
         <div className="flex justify-center gap-4">
           {[...Array(5)].map((_, i) => (
             <motion.div

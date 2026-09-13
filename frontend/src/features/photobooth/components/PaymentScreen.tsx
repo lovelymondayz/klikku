@@ -35,7 +35,7 @@ export default function PaymentScreen() {
 
   if (paid) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-green-50 to-emerald-100">
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-success-subtle to-surface-alt">
         <motion.div
           initial={{ scale: 0 }}
           animate={{ scale: 1 }}
@@ -51,7 +51,7 @@ export default function PaymentScreen() {
 
   if (processing) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100">
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-info-subtle to-surface-alt">
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
@@ -66,20 +66,20 @@ export default function PaymentScreen() {
   }
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-br from-pink-50 via-purple-50 to-blue-50 p-8">
+    <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-br from-primary-subtle via-surface-alt to-info-subtle p-8">
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         className="max-w-md w-full"
       >
-        <button onClick={handleBack} className="text-gray-600 mb-6 flex items-center gap-2">
+        <button onClick={handleBack} className="text-text-muted mb-6 flex items-center gap-2">
           ← Back
         </button>
 
         <div className="card text-center mb-6">
           <h2 className="text-2xl font-bold mb-2">Complete Payment</h2>
           {selectedTemplate && (
-            <div className="bg-gray-50 rounded-2xl p-4 mt-4">
+            <div className="bg-bg rounded-lg p-4 mt-4">
               <p className="font-semibold">{selectedTemplate.name}</p>
               <p className="text-2xl font-bold text-primary mt-2">Rp {selectedTemplate.price?.toLocaleString()}</p>
             </div>
@@ -94,7 +94,7 @@ export default function PaymentScreen() {
             <QrCode size={32} className="text-purple-500" />
             <div className="text-left">
               <p className="font-semibold">QRIS / QR Payment</p>
-              <p className="text-sm text-gray-500">Scan with any e-wallet</p>
+              <p className="text-sm text-text-muted">Scan with any e-wallet</p>
             </div>
           </button>
 
@@ -105,7 +105,7 @@ export default function PaymentScreen() {
             <Smartphone size={32} className="text-green-500" />
             <div className="text-left">
               <p className="font-semibold">E-Wallet</p>
-              <p className="text-sm text-gray-500">GoPay, OVO, Dana, LinkAja</p>
+              <p className="text-sm text-text-muted">GoPay, OVO, Dana, LinkAja</p>
             </div>
           </button>
 
@@ -116,12 +116,12 @@ export default function PaymentScreen() {
             <CreditCard size={32} className="text-blue-500" />
             <div className="text-left">
               <p className="font-semibold">Credit / Debit Card</p>
-              <p className="text-sm text-gray-500">Visa, Mastercard, JCB</p>
+              <p className="text-sm text-text-muted">Visa, Mastercard, JCB</p>
             </div>
           </button>
         </div>
 
-        <p className="text-center text-xs text-gray-400 mt-6">
+        <p className="text-center text-xs text-text-subtle mt-6">
           🔒 Secure payment powered by Klikku
         </p>
       </motion.div>

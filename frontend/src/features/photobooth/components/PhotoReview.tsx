@@ -27,7 +27,7 @@ export default function PhotoReview() {
 
   return (
     <motion.div
-      className="relative w-full h-full overflow-hidden bg-gradient-to-br from-gray-900 via-purple-900 to-gray-900"
+      className="relative w-full h-full overflow-hidden bg-surface to-surface"
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
@@ -36,14 +36,14 @@ export default function PhotoReview() {
       {/* Animated background */}
       <div className="absolute inset-0">
         <motion.div
-          className="absolute top-0 left-0 w-full h-full bg-gradient-to-br from-primary/20 via-transparent to-secondary/20"
+          className="absolute top-0 left-0 w-full h-full bg-gradient-to-br from-primary-subtle to-primary-subtle"
           animate={{ opacity: [0.5, 0.8, 0.5] }}
           transition={{ duration: 4, repeat: Infinity }}
         />
         {[...Array(20)].map((_, i) => (
           <motion.div
             key={i}
-            className="absolute w-1 h-1 bg-white/30 rounded-full"
+            className="absolute w-1 h-1 bg-surface/30 rounded-full"
             style={{
               left: `${Math.random() * 100}%`,
               top: `${Math.random() * 100}%`,
@@ -66,13 +66,13 @@ export default function PhotoReview() {
         <div className="flex items-center justify-between mb-6">
           <motion.button
             onClick={handleRetake}
-            className="w-14 h-14 rounded-full bg-white/10 backdrop-blur-sm flex items-center justify-center"
+            className="w-14 h-14 rounded-full bg-surface-alt  flex items-center justify-center"
             whileTap={{ scale: 0.9 }}
           >
-            <ArrowLeft size={24} className="text-white" />
+            <ArrowLeft size={24} className="text-text" />
           </motion.button>
 
-          <h1 className="text-2xl md:text-3xl font-bold text-white">
+          <h1 className="text-2xl md:text-3xl font-bold text-text">
             Your Photos
           </h1>
 
@@ -86,7 +86,7 @@ export default function PhotoReview() {
           animate={{ scale: 1, opacity: 1 }}
           transition={{ delay: 0.2, duration: 0.5 }}
         >
-          <div className="relative w-full max-w-2xl aspect-[4/3] bg-black/40 rounded-3xl overflow-hidden border-4 border-white/20 shadow-2xl">
+          <div className="relative w-full max-w-2xl aspect-[4/3] bg-surface-alt rounded-lg overflow-hidden border-4 border-white/20 shadow-md">
             {/* Placeholder composed image */}
             {capturedPhotos.length > 0 ? (
               <img
@@ -95,10 +95,10 @@ export default function PhotoReview() {
                 className="w-full h-full object-cover"
               />
             ) : (
-              <div className="w-full h-full flex flex-col items-center justify-center bg-gradient-to-br from-gray-800 to-gray-700">
-                <Image size={80} className="text-gray-500 mb-4" />
-                <p className="text-gray-400 text-lg font-medium">Your composed photo</p>
-                <p className="text-gray-500 text-sm mt-1">
+              <div className="w-full h-full flex flex-col items-center justify-center bg-gradient-to-br from-surface-alt to-border">
+                <Image size={80} className="text-text-muted mb-4" />
+                <p className="text-text-subtle text-lg font-medium">Your composed photo</p>
+                <p className="text-text-muted text-sm mt-1">
                   {selectedTemplate.name} • {selectedTemplate.photo_count} shots
                 </p>
               </div>
@@ -111,8 +111,8 @@ export default function PhotoReview() {
             <div className="absolute bottom-4 right-4 w-8 h-8 border-b-2 border-r-2 border-accent/60 rounded-br-lg" />
 
             {/* Watermark */}
-            <div className="absolute bottom-4 left-1/2 -translate-x-1/2 px-4 py-1 bg-black/50 backdrop-blur-sm rounded-full">
-              <span className="text-white/60 text-xs font-medium">KLICKU</span>
+            <div className="absolute bottom-4 left-1/2 -translate-x-1/2 px-4 py-1 bg-surface-alt  rounded-full">
+              <span className="text-text/60 text-xs font-medium">KLICKU</span>
             </div>
           </div>
         </motion.div>
@@ -126,7 +126,7 @@ export default function PhotoReview() {
         >
           <motion.button
             onClick={handleRetake}
-            className="flex-1 py-5 rounded-2xl bg-white/10 backdrop-blur-sm text-white font-semibold text-lg flex items-center justify-center gap-3 active:scale-95 transition-transform"
+            className="flex-1 py-5 rounded-lg bg-surface-alt  text-text font-semibold text-lg flex items-center justify-center gap-3 active:scale-95 transition-transform"
             whileTap={{ scale: 0.95 }}
           >
             <RotateCcw size={22} />
@@ -134,7 +134,7 @@ export default function PhotoReview() {
           </motion.button>
           <motion.button
             onClick={handleContinue}
-            className="flex-1 py-5 rounded-2xl bg-gradient-to-r from-primary to-secondary text-white font-bold text-lg shadow-lg flex items-center justify-center gap-3 active:scale-95 transition-transform"
+            className="flex-1 py-5 rounded-lg bg-primary text-text font-bold text-lg shadow-md flex items-center justify-center gap-3 active:scale-95 transition-transform"
             whileTap={{ scale: 0.95 }}
           >
             <Sparkles size={22} />
@@ -147,7 +147,7 @@ export default function PhotoReview() {
           {capturedPhotos.map((photo, i) => (
             <motion.div
               key={i}
-              className="w-12 h-12 rounded-lg overflow-hidden border-2 border-white/30 shadow-lg"
+              className="w-12 h-12 rounded-lg overflow-hidden border-2 border-white/30 shadow-md"
               initial={{ scale: 0, rotate: -10 }}
               animate={{ scale: 1, rotate: 0 }}
               transition={{ type: 'spring', delay: 0.5 + i * 0.1 }}

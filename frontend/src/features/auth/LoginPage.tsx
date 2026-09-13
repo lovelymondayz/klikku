@@ -25,24 +25,24 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-pink-100 via-purple-50 to-blue-100 p-4">
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary-subtle via-surface-alt to-info-subtle p-4">
       <div className="card w-full max-w-md">
         <div className="text-center mb-8">
-          <h1 className="text-4xl font-display font-bold bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">
+          <h1 className="text-4xl font-display font-bold text-primary">
             Klikku
           </h1>
-          <p className="text-gray-500 mt-2">Photobooth Platform</p>
+          <p className="text-text-muted mt-2">Photobooth Platform</p>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
           {error && (
-            <div className="bg-red-50 text-red-600 p-3 rounded-xl text-sm">
+            <div className="bg-red-50 text-red-600 p-3 rounded-md text-sm">
               {error}
             </div>
           )}
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
+            <label className="block text-sm font-medium text-text mb-1">Email</label>
             <input
               type="email"
               value={email}
@@ -54,7 +54,7 @@ export default function LoginPage() {
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Password</label>
+            <label className="block text-sm font-medium text-text mb-1">Password</label>
             <input
               type="password"
               value={password}

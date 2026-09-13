@@ -37,7 +37,7 @@ export default function BrandingPage() {
     setBranding(form as BrandingData)
   }
 
-  if (loading) return <p className="text-gray-500">Loading...</p>
+  if (loading) return <p className="text-text-muted">Loading...</p>
 
   return (
     <div>
@@ -51,25 +51,25 @@ export default function BrandingPage() {
 
           <div className="space-y-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Business Name</label>
+              <label className="block text-sm font-medium text-text mb-1">Business Name</label>
               <input className="input" value={form.business_name || ''} onChange={(e) => setForm({ ...form, business_name: e.target.value })} />
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Welcome Message</label>
+              <label className="block text-sm font-medium text-text mb-1">Welcome Message</label>
               <input className="input" value={form.welcome_message || ''} onChange={(e) => setForm({ ...form, welcome_message: e.target.value })} placeholder="Capture Your Moment" />
             </div>
 
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Primary Color</label>
+                <label className="block text-sm font-medium text-text mb-1">Primary Color</label>
                 <div className="flex gap-2">
                   <input type="color" className="w-12 h-10 rounded border" value={form.primary_color || '#ff6b9d'} onChange={(e) => setForm({ ...form, primary_color: e.target.value })} />
                   <input className="input" value={form.primary_color || ''} onChange={(e) => setForm({ ...form, primary_color: e.target.value })} />
                 </div>
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Secondary Color</label>
+                <label className="block text-sm font-medium text-text mb-1">Secondary Color</label>
                 <div className="flex gap-2">
                   <input type="color" className="w-12 h-10 rounded border" value={form.secondary_color || '#c44dff'} onChange={(e) => setForm({ ...form, secondary_color: e.target.value })} />
                   <input className="input" value={form.secondary_color || ''} onChange={(e) => setForm({ ...form, secondary_color: e.target.value })} />
@@ -78,7 +78,7 @@ export default function BrandingPage() {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Font</label>
+              <label className="block text-sm font-medium text-text mb-1">Font</label>
               <select className="input" value={form.font || ''} onChange={(e) => setForm({ ...form, font: e.target.value })}>
                 <option value="">Default</option>
                 <option value="Poppins">Poppins</option>
@@ -94,11 +94,11 @@ export default function BrandingPage() {
           <h2 className="text-xl font-semibold mb-4">Logo</h2>
           <div className="flex items-center gap-4">
             {form.logo_url && (
-              <img src={form.logo_url} alt="Logo" className="w-20 h-20 rounded-xl object-cover" />
+              <img src={form.logo_url} alt="Logo" className="w-20 h-20 rounded-md object-cover" />
             )}
             <div>
-              <p className="text-sm text-gray-500 mb-2">Upload your logo to MinIO storage</p>
-              <p className="text-xs text-gray-400">Use the Assets section to upload files</p>
+              <p className="text-sm text-text-muted mb-2">Upload your logo to MinIO storage</p>
+              <p className="text-xs text-text-subtle">Use the Assets section to upload files</p>
             </div>
           </div>
         </div>

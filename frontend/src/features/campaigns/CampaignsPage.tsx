@@ -74,20 +74,20 @@ export default function CampaignsPage() {
       )}
 
       {loading ? (
-        <p className="text-gray-500">Loading...</p>
+        <p className="text-text-muted">Loading...</p>
       ) : campaigns.length === 0 ? (
-        <p className="text-gray-500">No campaigns yet. Create your first campaign!</p>
+        <p className="text-text-muted">No campaigns yet. Create your first campaign!</p>
       ) : (
         <div className="grid gap-4">
           {campaigns.map((c) => (
             <div key={c.id} className="card flex items-center justify-between">
               <div>
                 <h3 className="font-semibold text-lg">{c.name}</h3>
-                <p className="text-sm text-gray-500">{c.description}</p>
-                <p className="text-xs text-gray-400 mt-1">{c.start_date} → {c.end_date}</p>
+                <p className="text-sm text-text-muted">{c.description}</p>
+                <p className="text-xs text-text-subtle mt-1">{c.start_date} → {c.end_date}</p>
               </div>
               <div className="flex items-center gap-2">
-                <span className={`px-3 py-1 rounded-full text-xs font-medium ${c.status === 'active' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-600'}`}>
+                <span className={`px-3 py-1 rounded-full text-xs font-medium ${c.status === 'active' ? 'bg-green-100 text-green-700' : 'bg-surface-alt text-text-muted'}`}>
                   {c.status}
                 </span>
                 <button onClick={() => handleDelete(c.id)} className="p-2 text-red-500 hover:bg-red-50 rounded-lg">

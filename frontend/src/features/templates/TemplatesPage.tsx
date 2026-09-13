@@ -69,15 +69,15 @@ export default function TemplatesPage() {
             <input placeholder="Template Name" className="input" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} required />
             <div className="grid grid-cols-3 gap-4">
               <div>
-                <label className="text-sm text-gray-600">Photo Count</label>
+                <label className="text-sm text-text-muted">Photo Count</label>
                 <input type="number" min="1" max="10" className="input" value={form.photo_count} onChange={(e) => setForm({ ...form, photo_count: +e.target.value })} />
               </div>
               <div>
-                <label className="text-sm text-gray-600">Price (Rp)</label>
+                <label className="text-sm text-text-muted">Price (Rp)</label>
                 <input type="number" className="input" value={form.price} onChange={(e) => setForm({ ...form, price: +e.target.value })} />
               </div>
               <div>
-                <label className="text-sm text-gray-600">Dimensions</label>
+                <label className="text-sm text-text-muted">Dimensions</label>
                 <div className="flex gap-2">
                   <input type="number" className="input" value={form.output_width} onChange={(e) => setForm({ ...form, output_width: +e.target.value })} placeholder="W" />
                   <input type="number" className="input" value={form.output_height} onChange={(e) => setForm({ ...form, output_height: +e.target.value })} placeholder="H" />
@@ -93,19 +93,19 @@ export default function TemplatesPage() {
       )}
 
       {loading ? (
-        <p className="text-gray-500">Loading...</p>
+        <p className="text-text-muted">Loading...</p>
       ) : templates.length === 0 ? (
-        <p className="text-gray-500">No templates yet.</p>
+        <p className="text-text-muted">No templates yet.</p>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {templates.map((t) => (
             <div key={t.id} className="card">
-              <div className="w-full h-40 bg-gradient-to-br from-pink-200 to-purple-200 rounded-2xl mb-4 flex items-center justify-center">
+              <div className="w-full h-40 bg-gradient-to-br from-primary-subtle to-surface-alt rounded-lg mb-4 flex items-center justify-center">
                 <span className="text-4xl">📸</span>
               </div>
               <h3 className="font-semibold text-lg">{t.name}</h3>
-              <p className="text-sm text-gray-500">{t.photo_count} photos • Rp {t.price.toLocaleString()}</p>
-              <p className="text-xs text-gray-400">{t.output_width}×{t.output_height}px</p>
+              <p className="text-sm text-text-muted">{t.photo_count} photos • Rp {t.price.toLocaleString()}</p>
+              <p className="text-xs text-text-subtle">{t.output_width}×{t.output_height}px</p>
               <div className="flex justify-between mt-3">
                 <button onClick={() => setEditingTemplateId(t.id)} className="btn-secondary flex items-center gap-1 text-sm">
                   <Paintbrush size={14} /> Edit

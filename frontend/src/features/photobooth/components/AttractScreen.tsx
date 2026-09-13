@@ -26,7 +26,7 @@ export default function AttractScreen() {
       exit={{ opacity: 0 }}
       transition={{ duration: 0.5 }}
     >
-      <div className="absolute inset-0 bg-gradient-to-br from-primary via-secondary to-purple-600" />
+      <div className="absolute inset-0 bg-gradient-to-br from-primary via-primary-hover to-primary-active" />
 
       <motion.div
         className="absolute -top-20 -left-20 w-80 h-80 rounded-full bg-accent/20 blur-3xl"
@@ -39,7 +39,7 @@ export default function AttractScreen() {
         transition={{ duration: 10, repeat: Infinity, ease: 'easeInOut' }}
       />
 
-      <div className="relative z-10 flex flex-col items-center justify-center h-full px-8 text-white">
+      <div className="relative z-10 flex flex-col items-center justify-center h-full px-8 text-text">
         <AnimatePresence>
           <motion.div
             initial={{ scale: 0, rotate: -180 }}
@@ -47,14 +47,14 @@ export default function AttractScreen() {
             transition={{ type: 'spring', stiffness: 200, damping: 15, delay: 0.2 }}
             className="mb-6"
           >
-            <div className="w-32 h-32 rounded-3xl bg-white/20 backdrop-blur-sm flex items-center justify-center shadow-2xl border border-white/30">
-              <Camera size={56} className="text-white" />
+            <div className="w-32 h-32 rounded-lg bg-surface/20  flex items-center justify-center shadow-md border border-white/30">
+              <Camera size={56} className="text-text" />
             </div>
           </motion.div>
         </AnimatePresence>
 
         <motion.h1
-          className="text-5xl md:text-7xl font-bold mb-4 text-center drop-shadow-lg"
+          className="text-5xl md:text-7xl font-bold mb-4 text-center drop-shadow-md"
           initial={{ y: 30, opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}
           transition={{ delay: 0.4, duration: 0.6 }}
@@ -63,7 +63,7 @@ export default function AttractScreen() {
         </motion.h1>
 
         <motion.p
-          className="text-xl md:text-2xl mb-10 text-white/90 text-center font-medium"
+          className="text-xl md:text-2xl mb-10 text-text/90 text-center font-medium"
           initial={{ y: 20, opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}
           transition={{ delay: 0.6, duration: 0.6 }}
@@ -72,7 +72,7 @@ export default function AttractScreen() {
         </motion.p>
 
         <motion.button
-          className="relative px-16 py-6 bg-white text-primary font-bold text-2xl md:text-3xl rounded-full shadow-2xl active:scale-95 transition-transform"
+          className="relative px-16 py-6 bg-surface text-primary font-bold text-2xl md:text-3xl rounded-full shadow-md active:scale-95 transition-transform"
           initial={{ y: 40, opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}
           transition={{ delay: 0.8, duration: 0.5 }}
@@ -92,10 +92,10 @@ export default function AttractScreen() {
           animate={{ opacity: 1 }}
           transition={{ delay: 1.2 }}
         >
-          <div className="w-16 h-16 bg-white rounded-2xl p-2 shadow-lg">
-            <QrCode size={40} className="text-gray-800 w-full h-full" />
+          <div className="w-16 h-16 bg-surface rounded-lg p-2 shadow-md">
+            <QrCode size={40} className="text-text w-full h-full" />
           </div>
-          <span className="text-xs text-white/70 font-medium">Follow Us</span>
+          <span className="text-xs text-text/70 font-medium">Follow Us</span>
         </motion.div>
       </div>
     </motion.div>

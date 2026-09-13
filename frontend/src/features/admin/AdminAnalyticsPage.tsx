@@ -23,7 +23,7 @@ export default function AdminAnalyticsPage() {
     })
   }, [])
 
-  if (loading) return <p className="text-gray-400">Loading...</p>
+  if (loading) return <p className="text-text-subtle">Loading...</p>
 
   const stats = [
     { label: 'Merchants', value: data?.merchants || 0, icon: Users, color: 'bg-pink-500' },
@@ -43,12 +43,12 @@ export default function AdminAnalyticsPage() {
         {stats.map((stat) => {
           const Icon = stat.icon
           return (
-            <div key={stat.label} className="bg-gray-800 rounded-2xl p-6">
-              <div className={`w-12 h-12 ${stat.color} rounded-2xl flex items-center justify-center mb-4`}>
-                <Icon className="text-white" size={24} />
+            <div key={stat.label} className="bg-surface rounded-lg p-6">
+              <div className={`w-12 h-12 ${stat.color} rounded-lg flex items-center justify-center mb-4`}>
+                <Icon className="text-text" size={24} />
               </div>
               <p className="text-2xl font-bold">{stat.value}</p>
-              <p className="text-sm text-gray-400">{stat.label}</p>
+              <p className="text-sm text-text-subtle">{stat.label}</p>
             </div>
           )
         })}

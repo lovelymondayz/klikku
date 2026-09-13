@@ -11,7 +11,7 @@
 
   body {
     font-family: 'Inter', sans-serif;
-    @apply bg-gray-50 text-gray-900 antialiased;
+    @apply bg-bg text-text antialiased;
     overscroll-behavior: none;
   }
 
@@ -24,18 +24,18 @@
 
 @layer components {
   .btn-primary {
-    @apply bg-[#ff6b9d] text-white font-semibold py-3 px-6 rounded-2xl shadow-lg active:scale-95 transition-all duration-200;
+    @apply bg-primary text-text font-semibold py-3 px-6 rounded-md shadow-md active:scale-95 transition-colors duration-base;
   }
 
   .btn-secondary {
-    @apply bg-white text-gray-900 font-semibold py-3 px-6 rounded-2xl shadow-md border border-gray-200 active:scale-95 transition-all duration-200;
+    @apply bg-surface text-text font-semibold py-3 px-6 rounded-md shadow-md border border-border active:scale-95 transition-colors duration-base;
   }
 
   .card {
-    @apply bg-white rounded-3xl shadow-lg p-6;
+    @apply bg-surface rounded-lg shadow-md p-6;
   }
 
   .input {
-    @apply w-full px-4 py-3 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-[#ff6b9d] focus:border-transparent transition;
+    @apply w-full px-4 py-3 rounded-md border border-border focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition;
   }
 }

@@ -179,10 +179,10 @@ export default function TemplateEditor({ templateId, onSave }: TemplateEditorPro
   return (
     <div className="flex h-full">
       {/* Canvas Area */}
-      <div className="flex-1 flex items-center justify-center bg-gray-100 p-8">
+      <div className="flex-1 flex items-center justify-center bg-surface-alt p-8">
         <div
           ref={canvasRef}
-          className="relative bg-white shadow-2xl"
+          className="relative bg-surface shadow-md"
           style={{
             width: 500,
             height: 750,
@@ -197,7 +197,7 @@ export default function TemplateEditor({ templateId, onSave }: TemplateEditorPro
             <div
               key={slot.id}
               className={`absolute border-2 border-dashed flex items-center justify-center cursor-move ${
-                selectedSlot === slot.id ? 'border-primary bg-primary/10' : 'border-gray-300 bg-gray-50'
+                selectedSlot === slot.id ? 'border-primary bg-primary/10' : 'border-border bg-bg'
               }`}
               style={{
                 left: slot.x,
@@ -208,11 +208,11 @@ export default function TemplateEditor({ templateId, onSave }: TemplateEditorPro
               }}
               onMouseDown={(e) => handleMouseDown(e, slot.id, 'slot')}
             >
-              <Move size={24} className="text-gray-400" />
+              <Move size={24} className="text-text-subtle" />
               {selectedSlot === slot.id && (
                 <button
                   onClick={() => deleteSlot(slot.id)}
-                  className="absolute -top-2 -right-2 w-6 h-6 bg-red-500 text-white rounded-full flex items-center justify-center"
+                  className="absolute -top-2 -right-2 w-6 h-6 bg-red-500 text-text rounded-full flex items-center justify-center"
                 >
                   <Trash2 size={12} />
                 </button>
@@ -239,7 +239,7 @@ export default function TemplateEditor({ templateId, onSave }: TemplateEditorPro
               {selectedText === text.id && (
                 <button
                   onClick={() => deleteText(text.id)}
-                  className="absolute -top-2 -right-2 w-6 h-6 bg-red-500 text-white rounded-full flex items-center justify-center"
+                  className="absolute -top-2 -right-2 w-6 h-6 bg-red-500 text-text rounded-full flex items-center justify-center"
                 >
                   <Trash2 size={12} />
                 </button>
@@ -250,12 +250,12 @@ export default function TemplateEditor({ templateId, onSave }: TemplateEditorPro
       </div>
 
       {/* Sidebar */}
-      <div className="w-80 bg-white border-l border-gray-200 p-6 overflow-y-auto">
+      <div className="w-80 bg-surface border-l border-border p-6 overflow-y-auto">
         <h2 className="text-xl font-bold mb-6">Template Editor</h2>
 
         {/* Template Name */}
         <div className="mb-6">
-          <label className="block text-sm font-medium text-gray-700 mb-2">Template Name</label>
+          <label className="block text-sm font-medium text-text mb-2">Template Name</label>
           <input
             className="input"
             value={template.name}
@@ -266,7 +266,7 @@ export default function TemplateEditor({ templateId, onSave }: TemplateEditorPro
 
         {/* Photo Count */}
         <div className="mb-6">
-          <label className="block text-sm font-medium text-gray-700 mb-2">Photo Count</label>
+          <label className="block text-sm font-medium text-text mb-2">Photo Count</label>
           <select
             className="input"
             value={template.photo_count}
@@ -282,10 +282,10 @@ export default function TemplateEditor({ templateId, onSave }: TemplateEditorPro
 
         {/* Background Color */}
         <div className="mb-6">
-          <label className="block text-sm font-medium text-gray-700 mb-2">Background Color</label>
+          <label className="block text-sm font-medium text-text mb-2">Background Color</label>
           <input
             type="color"
-            className="w-full h-10 rounded-lg border border-gray-200"
+            className="w-full h-10 rounded-lg border border-border"
             value={template.background_color}
             onChange={(e) => setTemplate({ ...template, background_color: e.target.value })}
           />
@@ -300,7 +300,7 @@ export default function TemplateEditor({ templateId, onSave }: TemplateEditorPro
 
         {/* Selected Text Properties */}
         {selectedText && (
-          <div className="mb-6 p-4 bg-gray-50 rounded-xl">
+          <div className="mb-6 p-4 bg-bg rounded-md">
             <h3 className="font-semibold mb-3">Text Properties</h3>
             <input
               className="input mb-3"
@@ -318,7 +318,7 @@ export default function TemplateEditor({ templateId, onSave }: TemplateEditorPro
               />
               <input
                 type="color"
-                className="w-1/2 h-10 rounded-lg border border-gray-200"
+                className="w-1/2 h-10 rounded-lg border border-border"
                 value={textOverlays.find(t => t.id === selectedText)?.color || '#ffffff'}
                 onChange={(e) => updateText(selectedText, { color: e.target.value })}
               />

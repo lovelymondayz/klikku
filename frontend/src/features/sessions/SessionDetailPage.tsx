@@ -111,22 +111,22 @@ export default function SessionDetailPage() {
 
   const getStatusIcon = (status: string) => {
     switch (status) {
-      case 'QUEUED': return <Clock size={14} className="text-gray-500" />
+      case 'QUEUED': return <Clock size={14} className="text-text-muted" />
       case 'PREPARING': return <Clock size={14} className="text-yellow-500" />
       case 'SENDING': return <Clock size={14} className="text-blue-500" />
       case 'PRINTING': return <Printer size={14} className="text-blue-500 animate-pulse" />
       case 'PRINT_COMPLETE': return <CheckCircle size={14} className="text-green-500" />
       case 'PRINTER_ERROR': return <AlertCircle size={14} className="text-red-500" />
-      default: return <Clock size={14} className="text-gray-400" />
+      default: return <Clock size={14} className="text-text-subtle" />
     }
   }
 
-  if (loading) return <p className="text-gray-500">Loading...</p>
-  if (!session) return <p className="text-gray-500">Session not found.</p>
+  if (loading) return <p className="text-text-muted">Loading...</p>
+  if (!session) return <p className="text-text-muted">Session not found.</p>
 
   return (
     <div>
-      <button onClick={() => window.history.back()} className="flex items-center gap-2 text-gray-600 mb-6">
+      <button onClick={() => window.history.back()} className="flex items-center gap-2 text-text-muted mb-6">
         <ArrowLeft size={20} /> Back
       </button>
 
@@ -134,9 +134,9 @@ export default function SessionDetailPage() {
         {/* Main Image */}
         <div className="lg:col-span-2">
           <div className="card">
-            <div className="aspect-[3/4] bg-gradient-to-br from-pink-100 to-purple-100 rounded-2xl flex items-center justify-center mb-4">
+            <div className="aspect-[3/4] bg-gradient-to-br from-primary-subtle to-surface-alt rounded-lg flex items-center justify-center mb-4">
               {session.final_image_url ? (
-                <img src={`/api/download/${session.id}`} alt="Final" className="max-w-full max-h-full object-contain rounded-2xl" />
+                <img src={`/api/download/${session.id}`} alt="Final" className="max-w-full max-h-full object-contain rounded-lg" />
               ) : (
                 <span className="text-6xl">📸</span>
               )}
@@ -146,7 +146,7 @@ export default function SessionDetailPage() {
             {photos.length > 0 && (
               <div className="flex gap-3 overflow-x-auto pb-2">
                 {photos.map((p) => (
-                  <div key={p.id} className="w-24 h-24 bg-gray-100 rounded-xl flex-shrink-0 flex items-center justify-center">
+                  <div key={p.id} className="w-24 h-24 bg-surface-alt rounded-md flex-shrink-0 flex items-center justify-center">
                     <span className="text-2xl">🖼️</span>
                   </div>
                 ))}
@@ -173,7 +173,7 @@ export default function SessionDetailPage() {
               <button onClick={handleReprint} className="btn-secondary w-full flex items-center justify-center gap-2">
                 <RefreshCw size={18} /> Reprint
               </button>
-              <button onClick={handleDelete} className="w-full py-2 text-red-500 hover:bg-red-50 rounded-xl flex items-center justify-center gap-2">
+              <button onClick={handleDelete} className="w-full py-2 text-red-500 hover:bg-red-50 rounded-md flex items-center justify-center gap-2">
                 <Trash2 size={18} /> Delete
               </button>
             </div>
@@ -184,21 +184,21 @@ export default function SessionDetailPage() {
             <h3 className="font-semibold mb-3">Session Info</h3>
             <div className="space-y-2 text-sm">
               <div className="flex justify-between">
-                <span className="text-gray-500">Status</span>
+                <span className="text-text-muted">Status</span>
                 <span className="font-medium">{session.status}</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-gray-500">Payment</span>
+                <span className="text-text-muted">Payment</span>
                 <span className={`font-medium ${session.payment_status === 'PAID' ? 'text-green-600' : 'text-yellow-600'}`}>
                   {session.payment_status}
                 </span>
               </div>
               <div className="flex justify-between">
-                <span className="text-gray-500">Email</span>
+                <span className="text-text-muted">Email</span>
                 <span className="font-medium">{session.email || 'Not provided'}</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-gray-500">Created</span>
+                <span className="text-text-muted">Created</span>
                 <span className="font-medium">{new Date(session.created_at).toLocaleString()}</span>
               </div>
             </div>
@@ -210,15 +210,15 @@ export default function SessionDetailPage() {
               <h3 className="font-semibold mb-3">Print Jobs</h3>
               <div className="space-y-2">
                 {printJobs.map((job) => (
-                  <div key={job.id} className="flex items-center justify-between p-2 bg-gray-50 rounded-lg">
+                  <div key={job.id} className="flex items-center justify-between p-2 bg-bg rounded-lg">
                     <div className="flex items-center gap-2">
                       {getStatusIcon(job.status)}
                       <div>
                         <p className="text-sm font-medium">{job.print_type} × {job.copies}</p>
-                        <p className="text-xs text-gray-500">{job.status}</p>
+                        <p className="text-xs text-text-muted">{job.status}</p>
                       </div>
                     </div>
-                    {job.printer_name && <span className="text-xs text-gray-400">{job.printer_name}</span>}
+                    {job.printer_name && <span className="text-xs text-text-subtle">{job.printer_name}</span>}
                   </div>
                 ))}
               </div>

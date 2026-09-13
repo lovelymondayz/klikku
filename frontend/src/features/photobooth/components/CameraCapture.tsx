@@ -151,7 +151,7 @@ export default function CameraCapture() {
       <AnimatePresence>
         {isFlashing && (
           <motion.div
-            className="absolute inset-0 bg-white z-50"
+            className="absolute inset-0 bg-surface z-50"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
@@ -162,10 +162,10 @@ export default function CameraCapture() {
 
       {/* Camera error overlay */}
       {cameraError && (
-        <div className="absolute inset-0 bg-gradient-to-br from-gray-900 to-gray-800 flex items-center justify-center">
+        <div className="absolute inset-0 bg-surface flex items-center justify-center">
           <div className="text-center">
-            <Camera size={64} className="mx-auto text-gray-500 mb-4" />
-            <p className="text-gray-400 text-lg">{cameraError}</p>
+            <Camera size={64} className="mx-auto text-text-muted mb-4" />
+            <p className="text-text-subtle text-lg">{cameraError}</p>
           </div>
         </div>
       )}
@@ -181,7 +181,7 @@ export default function CameraCapture() {
           >
             <motion.div
               key={countdown}
-              className="text-9xl font-bold text-white drop-shadow-2xl"
+              className="text-9xl font-bold text-text drop-shadow-md"
               initial={{ scale: 2, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.5, opacity: 0 }}
@@ -198,10 +198,10 @@ export default function CameraCapture() {
         <div className="flex items-center justify-between">
           <motion.button
             onClick={handleBack}
-            className="w-12 h-12 rounded-full bg-black/40 backdrop-blur-sm flex items-center justify-center"
+            className="w-12 h-12 rounded-full bg-surface-alt  flex items-center justify-center"
             whileTap={{ scale: 0.9 }}
           >
-            <X size={24} className="text-white" />
+            <X size={24} className="text-text" />
           </motion.button>
 
           <div className="flex items-center gap-2">
@@ -212,8 +212,8 @@ export default function CameraCapture() {
                   i < capturedPhotos.length
                     ? 'bg-primary'
                     : i === currentShot
-                    ? 'bg-white'
-                    : 'bg-white/30'
+                    ? 'bg-surface'
+                    : 'bg-surface/30'
                 }`}
                 animate={i === currentShot ? { scale: [1, 1.3, 1] } : {}}
                 transition={{ duration: 1, repeat: Infinity }}
@@ -232,7 +232,7 @@ export default function CameraCapture() {
             {capturedPhotos.map((photo, i) => (
               <motion.div
                 key={i}
-                className="flex-shrink-0 w-16 h-16 rounded-xl overflow-hidden border-2 border-white/50 shadow-lg"
+                className="flex-shrink-0 w-16 h-16 rounded-md overflow-hidden border-2 border-white/50 shadow-md"
                 initial={{ scale: 0, y: 20 }}
                 animate={{ scale: 1, y: 0 }}
                 transition={{ type: 'spring', stiffness: 300, delay: i * 0.05 }}
@@ -252,12 +252,12 @@ export default function CameraCapture() {
             initial={{ y: 30, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
           >
-            <p className="text-white text-lg font-medium drop-shadow-lg">
+            <p className="text-text text-lg font-medium drop-shadow-md">
               Photo {currentShot + 1} of {totalPhotos} — Get ready!
             </p>
             <motion.button
               onClick={runCountdown}
-              className="w-20 h-20 rounded-full bg-white shadow-2xl flex items-center justify-center"
+              className="w-20 h-20 rounded-full bg-surface shadow-md flex items-center justify-center"
               whileHover={{ scale: 1.1 }}
               whileTap={{ scale: 0.9 }}
             >
@@ -275,13 +275,13 @@ export default function CameraCapture() {
             animate={{ y: 0, opacity: 1 }}
             transition={{ delay: 0.3 }}
           >
-            <p className="text-white text-lg font-medium drop-shadow-lg">
+            <p className="text-text text-lg font-medium drop-shadow-md">
               All done! {totalPhotos} photos captured 🎉
             </p>
             <div className="flex gap-4">
               <motion.button
                 onClick={handleRetake}
-                className="px-6 py-4 rounded-2xl bg-white/20 backdrop-blur-sm text-white font-semibold flex items-center gap-2"
+                className="px-6 py-4 rounded-lg bg-surface/20  text-text font-semibold flex items-center gap-2"
                 whileTap={{ scale: 0.95 }}
               >
                 <RefreshCw size={20} />
@@ -289,7 +289,7 @@ export default function CameraCapture() {
               </motion.button>
               <motion.button
                 onClick={handleContinue}
-                className="px-8 py-4 rounded-2xl bg-gradient-to-r from-primary to-secondary text-white font-bold shadow-lg flex items-center gap-2"
+                className="px-8 py-4 rounded-lg bg-primary text-text font-bold shadow-md flex items-center gap-2"
                 whileTap={{ scale: 0.95 }}
               >
                 Continue ✨

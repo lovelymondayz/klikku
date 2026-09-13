@@ -64,7 +64,7 @@ export default function DevicesPage() {
       <div className="flex justify-between items-center mb-8">
         <div>
           <h1 className="text-3xl font-bold">Devices</h1>
-          <p className="text-gray-500 mt-1">Manage photobooth devices and their campaigns</p>
+          <p className="text-text-muted mt-1">Manage photobooth devices and their campaigns</p>
         </div>
         <button onClick={() => setShowForm(true)} className="btn-primary flex items-center gap-2">
           <Plus size={20} /> Add Device
@@ -89,11 +89,11 @@ export default function DevicesPage() {
       )}
 
       {loading ? (
-        <p className="text-gray-500">Loading...</p>
+        <p className="text-text-muted">Loading...</p>
       ) : devices.length === 0 ? (
         <div className="card text-center py-12">
-          <Camera size={48} className="mx-auto text-gray-300 mb-4" />
-          <p className="text-gray-500">No devices registered. Add your first device to get started.</p>
+          <Camera size={48} className="mx-auto text-text-subtle mb-4" />
+          <p className="text-text-muted">No devices registered. Add your first device to get started.</p>
         </div>
       ) : (
         <div className="grid gap-4">
@@ -101,17 +101,17 @@ export default function DevicesPage() {
             <div key={d.id} className="card">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-4">
-                  <div className={`w-12 h-12 rounded-2xl flex items-center justify-center ${d.status === 'online' ? 'bg-green-100' : 'bg-gray-100'}`}>
-                    {d.status === 'online' ? <Wifi className="text-green-600" size={24} /> : <WifiOff className="text-gray-400" size={24} />}
+                  <div className={`w-12 h-12 rounded-lg flex items-center justify-center ${d.status === 'online' ? 'bg-green-100' : 'bg-surface-alt'}`}>
+                    {d.status === 'online' ? <Wifi className="text-green-600" size={24} /> : <WifiOff className="text-text-subtle" size={24} />}
                   </div>
                   <div>
                     <h3 className="font-semibold">{d.name}</h3>
-                    <p className="text-sm text-gray-500 font-mono">{d.device_token.slice(0, 16)}...</p>
-                    <p className="text-xs text-gray-400">Last seen: {d.last_seen_at ? new Date(d.last_seen_at).toLocaleString() : 'Never'}</p>
+                    <p className="text-sm text-text-muted font-mono">{d.device_token.slice(0, 16)}...</p>
+                    <p className="text-xs text-text-subtle">Last seen: {d.last_seen_at ? new Date(d.last_seen_at).toLocaleString() : 'Never'}</p>
                   </div>
                 </div>
                 <div className="flex items-center gap-3">
-                  <span className={`px-3 py-1 rounded-full text-xs font-medium ${d.status === 'online' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-600'}`}>
+                  <span className={`px-3 py-1 rounded-full text-xs font-medium ${d.status === 'online' ? 'bg-green-100 text-green-700' : 'bg-surface-alt text-text-muted'}`}>
                     {d.status}
                   </span>
                   <button onClick={() => handleDelete(d.id)} className="p-2 text-red-500 hover:bg-red-50 rounded-lg">
@@ -120,10 +120,10 @@ export default function DevicesPage() {
                 </div>
               </div>
               <div className="mt-4 pt-4 border-t border-gray-100 flex items-center gap-3">
-                <Settings size={16} className="text-gray-400" />
-                <span className="text-sm text-gray-500">Campaign:</span>
+                <Settings size={16} className="text-text-subtle" />
+                <span className="text-sm text-text-muted">Campaign:</span>
                 <select
-                  className="text-sm border border-gray-200 rounded-lg px-3 py-1"
+                  className="text-sm border border-border rounded-lg px-3 py-1"
                   value={d.current_campaign_id || ''}
                   onChange={(e) => handleAssignCampaign(d.id, e.target.value)}
                 >

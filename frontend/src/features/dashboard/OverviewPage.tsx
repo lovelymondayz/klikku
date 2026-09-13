@@ -23,7 +23,7 @@ export default function OverviewPage() {
     })
   }, [])
 
-  if (loading) return <p className="text-gray-500">Loading...</p>
+  if (loading) return <p className="text-text-muted">Loading...</p>
 
   const stats = [
     { label: 'Total Sessions', value: data?.sessions || 0, icon: Camera, color: 'bg-pink-100 text-pink-600' },
@@ -40,11 +40,11 @@ export default function OverviewPage() {
         {stats.map((stat) => (
           <div key={stat.label} className="card">
             <div className="flex items-center gap-4">
-              <div className={`w-12 h-12 rounded-2xl flex items-center justify-center ${stat.color}`}>
+              <div className={`w-12 h-12 rounded-lg flex items-center justify-center ${stat.color}`}>
                 <stat.icon size={24} />
               </div>
               <div>
-                <p className="text-sm text-gray-500">{stat.label}</p>
+                <p className="text-sm text-text-muted">{stat.label}</p>
                 <p className="text-2xl font-bold">{stat.value}</p>
               </div>
             </div>

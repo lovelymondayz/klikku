@@ -29,28 +29,28 @@ export default function TemplateSelection() {
 
   return (
     <motion.div
-      className="relative w-full h-full overflow-hidden bg-gradient-to-br from-gray-50 to-purple-50"
+      className="relative w-full h-full overflow-hidden bg-gradient-to-br from-bg to-primary-subtle"
       initial={{ opacity: 0, x: 100 }}
       animate={{ opacity: 1, x: 0 }}
       exit={{ opacity: 0, x: -100 }}
       transition={{ duration: 0.5 }}
     >
       {/* Background decoration */}
-      <div className="absolute top-0 right-0 w-64 h-64 bg-gradient-to-bl from-primary/10 to-transparent rounded-full -translate-y-1/2 translate-x-1/2" />
-      <div className="absolute bottom-0 left-0 w-48 h-48 bg-gradient-to-tr from-secondary/10 to-transparent rounded-full translate-y-1/2 -translate-x-1/2" />
+      <div className="absolute top-0 right-0 w-64 h-64 bg-gradient-to-bl from-primary-subtle rounded-full -translate-y-1/2 translate-x-1/2" />
+      <div className="absolute bottom-0 left-0 w-48 h-48 bg-gradient-to-tr from-primary-subtle rounded-full translate-y-1/2 -translate-x-1/2" />
 
       <div className="relative z-10 flex flex-col h-full p-6 md:p-8">
         {/* Header */}
         <div className="flex items-center justify-between mb-6">
           <motion.button
             onClick={handleBack}
-            className="w-14 h-14 rounded-full bg-white shadow-lg flex items-center justify-center active:scale-90 transition-transform"
+            className="w-14 h-14 rounded-full bg-surface shadow-md flex items-center justify-center active:scale-90 transition-transform"
             whileTap={{ scale: 0.9 }}
           >
-            <ArrowLeft size={24} className="text-gray-700" />
+            <ArrowLeft size={24} className="text-text" />
           </motion.button>
 
-          <h1 className="text-2xl md:text-3xl font-bold text-gray-800">
+          <h1 className="text-2xl md:text-3xl font-bold text-text">
             Choose Your Style
           </h1>
 
@@ -63,10 +63,10 @@ export default function TemplateSelection() {
             <motion.button
               key={template.id}
               onClick={() => handleSelect(template)}
-              className={`relative flex flex-col items-center justify-center p-6 rounded-3xl border-4 transition-all duration-300 min-h-[200px] ${
+              className={`relative flex flex-col items-center justify-center p-6 rounded-lg border-4 transition-colors duration-base min-h-[200px] ${
                 selectedTemplate?.id === template.id
-                  ? 'border-primary bg-white shadow-xl shadow-primary/20'
-                  : 'border-transparent bg-white/80 shadow-lg hover:shadow-xl'
+                  ? 'border-primary bg-surface shadow-xl shadow-primary/20'
+                  : 'border-transparent bg-surface/80 shadow-md hover:shadow-xl'
               }`}
               initial={{ opacity: 0, y: 30 }}
               animate={{ opacity: 1, y: 0 }}
@@ -82,21 +82,21 @@ export default function TemplateSelection() {
                   animate={{ scale: 1 }}
                   transition={{ type: 'spring', stiffness: 500 }}
                 >
-                  <span className="text-white text-lg">✓</span>
+                  <span className="text-text text-lg">✓</span>
                 </motion.div>
               )}
 
               {/* Layout icon */}
-              <div className={`mb-4 p-4 rounded-2xl ${
+              <div className={`mb-4 p-4 rounded-lg ${
                 selectedTemplate?.id === template.id
                   ? 'bg-primary/10 text-primary'
-                  : 'bg-gray-100 text-gray-500'
+                  : 'bg-surface-alt text-text-muted'
               }`}>
                 {LAYOUT_ICONS[template.layout_config?.output_width > 1000 ? 'strip' : 'square'] || <Camera size={32} />}
               </div>
 
               {/* Template name */}
-              <h3 className="text-lg font-bold text-gray-800 mb-1">
+              <h3 className="text-lg font-bold text-text mb-1">
                 {template.name}
               </h3>
 
@@ -108,7 +108,7 @@ export default function TemplateSelection() {
 
               {/* Price */}
               <div className="mt-2 px-4 py-1 bg-accent/20 rounded-full">
-                <span className="text-sm font-bold text-gray-800">
+                <span className="text-sm font-bold text-text">
                   ${template.price.toFixed(2)}
                 </span>
               </div>
@@ -120,10 +120,10 @@ export default function TemplateSelection() {
         <motion.button
           onClick={handleConfirm}
           disabled={!selectedTemplate}
-          className={`mt-6 w-full py-5 rounded-2xl text-xl font-bold shadow-lg transition-all duration-300 ${
+          className={`mt-6 w-full py-5 rounded-lg text-xl font-bold shadow-md transition-colors duration-base ${
             selectedTemplate
-              ? 'bg-gradient-to-r from-primary to-secondary text-white active:scale-95'
-              : 'bg-gray-200 text-gray-400 cursor-not-allowed'
+              ? 'bg-primary text-text active:scale-95'
+              : 'bg-border text-text-subtle cursor-not-allowed'
           }`}
           whileHover={selectedTemplate ? { scale: 1.02 } : {}}
           whileTap={selectedTemplate ? { scale: 0.98 } : {}}

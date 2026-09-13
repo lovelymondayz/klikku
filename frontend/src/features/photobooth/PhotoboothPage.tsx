@@ -13,7 +13,7 @@ export default function PhotoboothPage() {
   const { currentStep } = usePhotoboothStore()
 
   return (
-    <div className="w-full h-full bg-gray-900 overflow-hidden">
+    <div className="w-full h-full bg-surface overflow-hidden">
       <AnimatePresence mode="wait">
         {currentStep === 'attract' && <AttractScreen key="attract" />}
         {currentStep === 'template-selection' && <TemplateSelection key="template-selection" />}
