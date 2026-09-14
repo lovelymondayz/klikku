@@ -24,6 +24,57 @@ services:
         max-size: "10m"
         max-file: "3"
 
+  immich:
+    image: ghcr.io/immich-app/immich-server:v1.120.0
+    container_name: klikku-immich
+    restart: unless-stopped
+    environment:
+      DB_HOSTNAME: immich-postgres
+      DB_USERNAME: immich
+      DB_PASSWORD: immich_secure_2026
+      DB_DATABASE_NAME: immich
+      REDIS_HOSTNAME: immich-redis
+      JWT_SECRET: immich_jwt_secret_change_me_in_production_min_32_chars
+      UPLOAD_LOCATION: ./library
+    volumes:
+      - immich_data:/usr/src/app/upload
+    ports:
+      - "8081:8080"
+    depends_on:
+      - immich-postgres
+      - immich-redis
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  immich-postgres:
+    image: tensorchord/pgvecto-rs:pg16-v0.2.0
+    container_name: klikku-immich-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: immich
+      POSTGRES_PASSWORD: immich_secure_2026
+      POSTGRES_DB: immich
+    volumes:
+      - immich_pg_data:/var/lib/postgresql/data
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  immich-redis:
+    image: redis:7-alpine
+    container_name: klikku-immich-redis
+    restart: unless-stopped
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
   backend:
     build:
       context: ./backend
@@ -35,6 +86,8 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+      immich:
+        condition: service_started
     ports:
       - "${BACKEND_PORT:-8083}:8083"
     volumes:
@@ -70,3 +123,5 @@ services:
 volumes:
   postgres_data:
   storage_data:
+  immich_data:
+  immich_pg_data:

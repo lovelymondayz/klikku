@@ -6,31 +6,31 @@ import (
 	"klikku/internal/config"
 	"klikku/internal/handlers"
 	"klikku/internal/middleware"
-	"klikku/internal/utils"
+	"klikku/internal/storage"
 )
 
-func Setup(app *gin.Engine, db *pgxpool.Pool, storage *utils.Storage, cfg *config.Config) {
+func Setup(app *gin.Engine, db *pgxpool.Pool, store storage.Storage, cfg *config.Config) {
 	api := app.Group("/api")
 
 	// Public routes
-	api.POST("/auth/register", handlers.Register(db))
-	api.POST("/auth/login", handlers.Login(db))
-	api.POST("/auth/refresh", handlers.RefreshToken(db))
+	api.POST("/auth/register", handlers.Register(db, cfg))
+	api.POST("/auth/login", handlers.Login(db, cfg))
+	api.POST("/auth/refresh", handlers.RefreshToken(db, cfg))
 	api.POST("/auth/logout", handlers.Logout())
 
 	// Public photobooth endpoints (device-facing)
 	api.GET("/device/:token/attract", handlers.GetAttractScreen(db))
 	api.POST("/device/:token/session", handlers.CreateSession(db))
 	api.GET("/sessions/:id", handlers.GetSession(db))
-	api.POST("/sessions/:id/capture", handlers.CapturePhoto(db, storage))
+	api.POST("/sessions/:id/capture", handlers.CapturePhoto(db, store))
 	api.GET("/sessions/:id/download", handlers.DownloadSession(db))
-	api.POST("/sessions/:id/finalize", handlers.FinalizeSession(db, storage))
-	api.GET("/download/:id", handlers.DownloadFinal(db, storage))
-	api.GET("/download/:id/secure", handlers.ValidateDownloadToken(db, storage))
+	api.POST("/sessions/:id/finalize", handlers.FinalizeSession(db, store))
+	api.GET("/download/:id", handlers.DownloadFinal(db, store))
+	api.GET("/download/:id/secure", handlers.ValidateDownloadToken(db, store))
 	api.POST("/sessions/:id/generate-link", handlers.GenerateSecureDownloadURL(db))
-	api.POST("/sessions/:id/auto-print", handlers.AutoPrintJob(db, storage))
-	api.POST("/sessions/:id/send-email", handlers.SendEmailDelivery(db, storage))
-	api.POST("/sessions/:id/resend-email", handlers.ResendEmail(db, storage))
+	api.POST("/sessions/:id/auto-print", handlers.AutoPrintJob(db, store))
+	api.POST("/sessions/:id/send-email", handlers.SendEmailDelivery(db, store))
+	api.POST("/sessions/:id/resend-email", handlers.ResendEmail(db, store))
 
 	// Protected routes
 	auth := api.Group("/")
@@ -67,14 +67,14 @@ func Setup(app *gin.Engine, db *pgxpool.Pool, storage *utils.Storage, cfg *confi
 	// Print Jobs
 	merchant.GET("/print-jobs", handlers.ListPrintJobs(db))
 	merchant.GET("/print-jobs/:id", handlers.GetPrintJob(db))
-	merchant.POST("/sessions/:id/print", handlers.CreatePrintJob(db, storage))
+	merchant.POST("/sessions/:id/print", handlers.CreatePrintJob(db, store))
 	merchant.PUT("/print-jobs/:id/status", handlers.UpdatePrintJobStatus(db))
-	merchant.POST("/sessions/:id/reprint", handlers.Reprint(db, storage))
+	merchant.POST("/sessions/:id/reprint", handlers.Reprint(db, store))
 	merchant.GET("/print-jobs/pending", handlers.GetPendingPrintJobs(db))
 
 	// Branding
 	merchant.GET("/branding", handlers.GetBranding(db))
-	merchant.PUT("/branding", handlers.UpdateBranding(db, storage))
+	merchant.PUT("/branding", handlers.UpdateBranding(db, store))
 
 	// Devices
 	merchant.GET("/devices", handlers.ListDevices(db))
@@ -99,5 +99,5 @@ func Setup(app *gin.Engine, db *pgxpool.Pool, storage *utils.Storage, cfg *confi
 	superAdmin.GET("/analytics", handlers.AdminGetPlatformAnalytics(db))
 
 	// Upload (merchant-scoped)
-	merchant.POST("/upload", handlers.UploadFile(db, storage))
+	merchant.POST("/upload", handlers.UploadFile(db, store))
 }

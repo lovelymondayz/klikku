@@ -12,6 +12,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"klikku/internal/storage"
 	"klikku/internal/utils"
 )
 
@@ -92,7 +93,7 @@ func CreateSession(db *pgxpool.Pool) gin.HandlerFunc {
 	}
 }
 
-func CapturePhoto(db *pgxpool.Pool, storage *utils.Storage) gin.HandlerFunc {
+func CapturePhoto(db *pgxpool.Pool, store storage.Storage) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		sessionID := c.Param("id")
 
@@ -122,7 +123,7 @@ func CapturePhoto(db *pgxpool.Pool, storage *utils.Storage) gin.HandlerFunc {
 			}
 
 			objectName := sessionID + "/original_" + string(rune('0'+i)) + ".jpg"
-			err = storage.Upload("originals", objectName, data, "image/jpeg")
+			err = store.Upload("originals", objectName, data, "image/jpeg")
 			if err != nil {
 				continue
 			}
@@ -343,7 +344,7 @@ func GetBranding(db *pgxpool.Pool) gin.HandlerFunc {
 	}
 }
 
-func UpdateBranding(db *pgxpool.Pool, storage *utils.Storage) gin.HandlerFunc {
+func UpdateBranding(db *pgxpool.Pool, store storage.Storage) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		merchantID := getMerchantID(c)
 		if merchantID == "" {
@@ -586,7 +587,7 @@ func GetAnalyticsOverview(db *pgxpool.Pool) gin.HandlerFunc {
 	}
 }
 
-func UploadFile(db *pgxpool.Pool, storage *utils.Storage) gin.HandlerFunc {
+func UploadFile(db *pgxpool.Pool, store storage.Storage) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		file, err := c.FormFile("file")
 		if err != nil {
@@ -613,7 +614,7 @@ func UploadFile(db *pgxpool.Pool, storage *utils.Storage) gin.HandlerFunc {
 		}
 		objectName := uuid.New().String() + "_" + file.Filename
 
-		err = storage.Upload(bucket, objectName, data, file.Header.Get("Content-Type"))
+		err = store.Upload(bucket, objectName, data, file.Header.Get("Content-Type"))
 		if err != nil {
 			utils.Error(c, 500, "failed to upload file")
 			return
@@ -627,7 +628,7 @@ func UploadFile(db *pgxpool.Pool, storage *utils.Storage) gin.HandlerFunc {
 	}
 }
 
-func FinalizeSession(db *pgxpool.Pool, storage *utils.Storage) gin.HandlerFunc {
+func FinalizeSession(db *pgxpool.Pool, store storage.Storage) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		sessionID := c.Param("id")
 
@@ -666,7 +667,7 @@ func FinalizeSession(db *pgxpool.Pool, storage *utils.Storage) gin.HandlerFunc {
 		os.MkdirAll(tempDir, 0755)
 
 		for i, url := range photoURLs {
-			data, err := storage.Download("originals", url)
+			data, err := store.Download("originals", url)
 			if err != nil {
 				log.Printf("Failed to download photo %s: %v", url, err)
 				continue
@@ -711,7 +712,7 @@ func FinalizeSession(db *pgxpool.Pool, storage *utils.Storage) gin.HandlerFunc {
 			return
 		}
 
-		err = storage.Upload("finals", finalName, finalData, "image/jpeg")
+		err = store.Upload("finals", finalName, finalData, "image/jpeg")
 		if err != nil {
 			utils.Error(c, 500, "failed to save final image")
 			return
@@ -735,7 +736,7 @@ func FinalizeSession(db *pgxpool.Pool, storage *utils.Storage) gin.HandlerFunc {
 	}
 }
 
-func DownloadFinal(db *pgxpool.Pool, storage *utils.Storage) gin.HandlerFunc {
+func DownloadFinal(db *pgxpool.Pool, store storage.Storage) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		sessionID := c.Param("id")
 
@@ -753,7 +754,7 @@ func DownloadFinal(db *pgxpool.Pool, storage *utils.Storage) gin.HandlerFunc {
 			return
 		}
 
-		data, err := storage.Download("finals", finalImageURL)
+		data, err := store.Download("finals", finalImageURL)
 		if err != nil {
 			utils.Error(c, 404, "image not found")
 			return

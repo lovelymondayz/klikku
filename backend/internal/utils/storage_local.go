@@ -72,7 +72,7 @@ func (s *Storage) Serve(bucket, objectName string, w io.Writer) error {
 	return err
 }
 
-// GetPath returns the full path for a file
-func (s *Storage) GetPath(bucket, objectName string) string {
+// GetURL returns the full path for a file
+func (s *Storage) GetURL(bucket, objectName string) string {
 	return filepath.Join(s.basePath, bucket, objectName)
 }

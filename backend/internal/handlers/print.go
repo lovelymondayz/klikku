@@ -11,10 +11,11 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"klikku/internal/storage"
 	"klikku/internal/utils"
 )
 
-func SendEmailDelivery(db *pgxpool.Pool, storage *utils.Storage) gin.HandlerFunc {
+func SendEmailDelivery(db *pgxpool.Pool, store storage.Storage) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		sessionID := c.Param("id")
 
@@ -48,7 +49,7 @@ func SendEmailDelivery(db *pgxpool.Pool, storage *utils.Storage) gin.HandlerFunc
 			}
 		}
 
-		finalData, err := storage.Download("finals", finalImageURL)
+		finalData, err := store.Download("finals", finalImageURL)
 		if err != nil {
 			utils.Error(c, 500, "failed to load final image")
 			return
@@ -88,13 +89,13 @@ func SendEmailDelivery(db *pgxpool.Pool, storage *utils.Storage) gin.HandlerFunc
 	}
 }
 
-func ResendEmail(db *pgxpool.Pool, storage *utils.Storage) gin.HandlerFunc {
+func ResendEmail(db *pgxpool.Pool, store storage.Storage) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		SendEmailDelivery(db, storage)(c)
+		SendEmailDelivery(db, store)(c)
 	}
 }
 
-func CreatePrintJob(db *pgxpool.Pool, storage *utils.Storage) gin.HandlerFunc {
+func CreatePrintJob(db *pgxpool.Pool, store storage.Storage) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		sessionID := c.Param("id")
 
@@ -250,7 +251,7 @@ func ListPrintJobs(db *pgxpool.Pool) gin.HandlerFunc {
 	}
 }
 
-func Reprint(db *pgxpool.Pool, storage *utils.Storage) gin.HandlerFunc {
+func Reprint(db *pgxpool.Pool, store storage.Storage) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		sessionID := c.Param("id")
 
@@ -319,7 +320,7 @@ func GetPendingPrintJobs(db *pgxpool.Pool) gin.HandlerFunc {
 	}
 }
 
-func AutoPrintJob(db *pgxpool.Pool, storage *utils.Storage) gin.HandlerFunc {
+func AutoPrintJob(db *pgxpool.Pool, store storage.Storage) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		sessionID := c.Param("id")
 
@@ -384,7 +385,7 @@ func GenerateSecureDownloadURL(db *pgxpool.Pool) gin.HandlerFunc {
 	}
 }
 
-func ValidateDownloadToken(db *pgxpool.Pool, storage *utils.Storage) gin.HandlerFunc {
+func ValidateDownloadToken(db *pgxpool.Pool, store storage.Storage) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		sessionID := c.Param("id")
 		token := c.Query("token")
@@ -417,7 +418,7 @@ func ValidateDownloadToken(db *pgxpool.Pool, storage *utils.Storage) gin.Handler
 			return
 		}
 
-		data, err := storage.Download("finals", finalImageURL)
+		data, err := store.Download("finals", finalImageURL)
 		if err != nil {
 			utils.Error(c, 404, "image not found")
 			return

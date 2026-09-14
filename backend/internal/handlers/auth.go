@@ -5,10 +5,11 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"klikku/internal/config"
 	"klikku/internal/utils"
 )
 
-func Register(db *pgxpool.Pool) gin.HandlerFunc {
+func Register(db *pgxpool.Pool, cfg *config.Config) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		var req struct {
 			Name         string `json:"name" binding:"required"`
@@ -22,7 +23,6 @@ func Register(db *pgxpool.Pool) gin.HandlerFunc {
 			return
 		}
 
-		// Check if email exists
 		var existingID string
 		err := db.QueryRow(context.Background(), "SELECT id FROM users WHERE email = $1", req.Email).Scan(&existingID)
 		if err == nil {
@@ -30,14 +30,12 @@ func Register(db *pgxpool.Pool) gin.HandlerFunc {
 			return
 		}
 
-		// Hash password
 		hash, err := utils.HashPassword(req.Password)
 		if err != nil {
 			utils.Error(c, 500, "failed to process password")
 			return
 		}
 
-		// Create merchant
 		var merchantID string
 		slug := req.Slug
 		if slug == "" {
@@ -51,7 +49,6 @@ func Register(db *pgxpool.Pool) gin.HandlerFunc {
 			return
 		}
 
-		// Create user
 		var userID string
 		err = db.QueryRow(context.Background(),
 			"INSERT INTO users (name, email, password_hash, role, merchant_id) VALUES ($1, $2, $3, $4, $5) RETURNING id",
@@ -61,16 +58,21 @@ func Register(db *pgxpool.Pool) gin.HandlerFunc {
 			return
 		}
 
+		accessToken, _ := utils.GenerateToken(userID, merchantID, "MERCHANT_ADMIN", req.Email, cfg)
+		refreshToken, _ := utils.GenerateRefreshToken(userID, cfg)
+
 		utils.Success(c, gin.H{
-			"user_id":     userID,
-			"merchant_id": merchantID,
-			"email":       req.Email,
-			"role":        "MERCHANT_ADMIN",
+			"user_id":       userID,
+			"merchant_id":   merchantID,
+			"email":         req.Email,
+			"role":          "MERCHANT_ADMIN",
+			"access_token":  accessToken,
+			"refresh_token": refreshToken,
 		})
 	}
 }
 
-func Login(db *pgxpool.Pool) gin.HandlerFunc {
+func Login(db *pgxpool.Pool, cfg *config.Config) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		var req struct {
 			Email    string `json:"email" binding:"required,email"`
@@ -102,17 +104,22 @@ func Login(db *pgxpool.Pool) gin.HandlerFunc {
 			return
 		}
 
+		accessToken, _ := utils.GenerateToken(user.ID, user.MerchantID, user.Role, user.Email, cfg)
+		refreshToken, _ := utils.GenerateRefreshToken(user.ID, cfg)
+
 		utils.Success(c, gin.H{
-			"user_id":     user.ID,
-			"merchant_id": user.MerchantID,
-			"email":       user.Email,
-			"name":        user.Name,
-			"role":        user.Role,
+			"user_id":       user.ID,
+			"merchant_id":   user.MerchantID,
+			"email":         user.Email,
+			"name":          user.Name,
+			"role":          user.Role,
+			"access_token":  accessToken,
+			"refresh_token": refreshToken,
 		})
 	}
 }
 
-func RefreshToken(db *pgxpool.Pool) gin.HandlerFunc {
+func RefreshToken(db *pgxpool.Pool, cfg *config.Config) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		var req struct {
 			RefreshToken string `json:"refresh_token" binding:"required"`
@@ -122,7 +129,34 @@ func RefreshToken(db *pgxpool.Pool) gin.HandlerFunc {
 			return
 		}
 
-		utils.Message(c, "not yet implemented")
+		claims, err := utils.ValidateToken(req.RefreshToken, cfg)
+		if err != nil {
+			utils.Error(c, 401, "invalid refresh token")
+			return
+		}
+
+		var user struct {
+			ID         string
+			Name       string
+			Email      string
+			Role       string
+			MerchantID string
+		}
+		err = db.QueryRow(context.Background(),
+			"SELECT id, name, email, role, merchant_id FROM users WHERE id = $1",
+			claims.UserID).Scan(&user.ID, &user.Name, &user.Email, &user.Role, &user.MerchantID)
+		if err != nil {
+			utils.Error(c, 401, "user not found")
+			return
+		}
+
+		accessToken, _ := utils.GenerateToken(user.ID, user.MerchantID, user.Role, user.Email, cfg)
+		newRefreshToken, _ := utils.GenerateRefreshToken(user.ID, cfg)
+
+		utils.Success(c, gin.H{
+			"access_token":  accessToken,
+			"refresh_token": newRefreshToken,
+		})
 	}
 }
 

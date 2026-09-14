@@ -24,6 +24,9 @@ type Config struct {
 	BrevoSender    string
 	BrevoSenderEmail string
 
+	ImmichAPIKey string
+	ImmichBaseURL string
+
 	FrontendURL   string
 	SuperAdminEmail string
 	SuperAdminPassword string
@@ -46,6 +49,9 @@ func Load() *Config {
 		BrevoAPIKey:    os.Getenv("BREVO_API_KEY"),
 		BrevoSender:    getEnv("BREVO_SENDER", "Klikku"),
 		BrevoSenderEmail: getEnv("BREVO_SENDER_EMAIL", "no-reply@klikku.arjism.com"),
+
+		ImmichAPIKey:  os.Getenv("IMMICH_API_KEY"),
+		ImmichBaseURL: getEnv("IMMICH_BASE_URL", "http://immich:8080"),
 
 		FrontendURL:   getEnv("FRONTEND_URL", "https://klikku.arjism.com"),
 		SuperAdminEmail: getEnv("SUPER_ADMIN_EMAIL", "admin@klikku.arjism.com"),
