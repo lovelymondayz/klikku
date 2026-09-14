@@ -1,10 +1,10 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState } from 'react'
 import { motion } from 'framer-motion'
-import { usePhotoboothStore } from '../../../stores/photoboothStore'
+import { usePhotoboothStore, STEPS } from '../../../stores/photoboothStore'
 import { CreditCard, QrCode, Smartphone, CheckCircle, Loader2 } from 'lucide-react'
 
 export default function PaymentScreen() {
-  const { setStep, selectedTemplate, createSession, isLoading } = usePhotoboothStore()
+  const { setStep, selectedTemplate, createSession } = usePhotoboothStore()
   const [paymentMethod, setPaymentMethod] = useState<'qr' | 'ewallet' | 'card' | null>(null)
   const [processing, setProcessing] = useState(false)
   const [paid, setPaid] = useState(false)
@@ -16,8 +16,6 @@ export default function PaymentScreen() {
     // Simulate payment processing
     await new Promise(resolve => setTimeout(resolve, 2000))
 
-    // In production, this would call the payment provider API
-    // For now, we simulate success
     setProcessing(false)
     setPaid(true)
 
@@ -25,12 +23,12 @@ export default function PaymentScreen() {
     await createSession('demo-token')
 
     setTimeout(() => {
-      setStep('CAPTURE')
+      setStep(STEPS.CAPTURE)
     }, 1500)
   }
 
   const handleBack = () => {
-    setStep('TEMPLATE_SELECT')
+    setStep(STEPS.TEMPLATE_SELECT)
   }
 
   if (paid) {
@@ -41,9 +39,9 @@ export default function PaymentScreen() {
           animate={{ scale: 1 }}
           className="text-center"
         >
-          <CheckCircle size={80} className="mx-auto text-green-500 mb-4" />
-          <h2 className="text-3xl font-bold text-green-800 mb-2">Payment Successful!</h2>
-          <p className="text-green-600">Preparing your photobooth...</p>
+          <CheckCircle size={80} className="mx-auto text-success mb-4" />
+          <h2 className="text-3xl font-bold text-success mb-2">Payment Successful!</h2>
+          <p className="text-success">Preparing your photobooth...</p>
         </motion.div>
       </div>
     )
@@ -57,9 +55,9 @@ export default function PaymentScreen() {
           animate={{ opacity: 1 }}
           className="text-center"
         >
-          <Loader2 size={60} className="mx-auto text-blue-500 animate-spin mb-4" />
-          <h2 className="text-2xl font-bold text-blue-800 mb-2">Processing Payment...</h2>
-          <p className="text-blue-600">Please wait</p>
+          <Loader2 size={60} className="mx-auto text-info animate-spin mb-4" />
+          <h2 className="text-2xl font-bold text-info mb-2">Processing Payment...</h2>
+          <p className="text-info">Please wait</p>
         </motion.div>
       </div>
     )
@@ -91,7 +89,7 @@ export default function PaymentScreen() {
             onClick={() => handlePayment('qr')}
             className="w-full card flex items-center gap-4 hover:border-primary transition"
           >
-            <QrCode size={32} className="text-purple-500" />
+            <QrCode size={32} className="text-secondary" />
             <div className="text-left">
               <p className="font-semibold">QRIS / QR Payment</p>
               <p className="text-sm text-text-muted">Scan with any e-wallet</p>
@@ -102,7 +100,7 @@ export default function PaymentScreen() {
             onClick={() => handlePayment('ewallet')}
             className="w-full card flex items-center gap-4 hover:border-primary transition"
           >
-            <Smartphone size={32} className="text-green-500" />
+            <Smartphone size={32} className="text-success" />
             <div className="text-left">
               <p className="font-semibold">E-Wallet</p>
               <p className="text-sm text-text-muted">GoPay, OVO, Dana, LinkAja</p>
@@ -113,7 +111,7 @@ export default function PaymentScreen() {
             onClick={() => handlePayment('card')}
             className="w-full card flex items-center gap-4 hover:border-primary transition"
           >
-            <CreditCard size={32} className="text-blue-500" />
+            <CreditCard size={32} className="text-info" />
             <div className="text-left">
               <p className="font-semibold">Credit / Debit Card</p>
               <p className="text-sm text-text-muted">Visa, Mastercard, JCB</p>

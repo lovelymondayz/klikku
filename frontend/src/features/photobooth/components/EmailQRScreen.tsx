@@ -1,6 +1,6 @@
 import React, { useState } from 'react'
 import { motion } from 'framer-motion'
-import { usePhotoboothStore } from '../../../stores/photoboothStore'
+import { usePhotoboothStore, STEPS } from '../../../stores/photoboothStore'
 import { Mail, QrCode, SkipForward, Send, CheckCircle } from 'lucide-react'
 import { QRCodeSVG } from 'qrcode.react'
 
@@ -19,11 +19,11 @@ export default function EmailQRScreen() {
 
   const handleSkip = async () => {
     await getDownloadUrl()
-    setStep('promotion')
+    setStep(STEPS.PROMOTION)
   }
 
   const handleContinue = () => {
-    setStep('promotion')
+    setStep(STEPS.PROMOTION)
   }
 
   return (
@@ -66,7 +66,7 @@ export default function EmailQRScreen() {
             animate={{ x: 0, opacity: 1 }}
             transition={{ delay: 0.3 }}
           >
-            <div className="bg-surface rounded-lg shadow-xl p-6 border border-gray-100">
+            <div className="bg-surface rounded-lg shadow-xl p-6 border border-border">
               <div className="flex items-center gap-3 mb-4">
                 <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
                   <Mail size={20} className="text-primary" />
@@ -104,7 +104,7 @@ export default function EmailQRScreen() {
                   animate={{ scale: 1, opacity: 1 }}
                   className="text-center py-4"
                 >
-                  <CheckCircle size={48} className="mx-auto text-green-500 mb-3" />
+                  <CheckCircle size={48} className="mx-auto text-success mb-3" />
                   <p className="text-text font-semibold">Email sent!</p>
                   <p className="text-text-muted text-sm mt-1">Check your inbox shortly</p>
                 </motion.div>
@@ -131,7 +131,7 @@ export default function EmailQRScreen() {
             animate={{ x: 0, opacity: 1 }}
             transition={{ delay: 0.4 }}
           >
-            <div className="bg-surface rounded-lg shadow-xl p-6 border border-gray-100 text-center">
+            <div className="bg-surface rounded-lg shadow-xl p-6 border border-border text-center">
               <div className="flex items-center justify-center gap-3 mb-4">
                 <div className="w-10 h-10 rounded-full bg-secondary/10 flex items-center justify-center">
                   <QrCode size={20} className="text-secondary" />

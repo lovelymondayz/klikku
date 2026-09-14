@@ -1,6 +1,6 @@
 import React from 'react'
 import { motion } from 'framer-motion'
-import { usePhotoboothStore, MOCK_TEMPLATES } from '../../../stores/photoboothStore'
+import { usePhotoboothStore, STEPS, MOCK_TEMPLATES } from '../../../stores/photoboothStore'
 import { ArrowLeft, Camera, Image, Grid3X3, Columns, LayoutGrid } from 'lucide-react'
 
 const LAYOUT_ICONS: Record<string, React.ReactNode> = {
@@ -19,12 +19,12 @@ export default function TemplateSelection() {
 
   const handleConfirm = () => {
     if (selectedTemplate) {
-      setStep('payment')
+      setStep(STEPS.PAYMENT)
     }
   }
 
   const handleBack = () => {
-    setStep('attract')
+    setStep(STEPS.IDLE)
   }
 
   return (
@@ -109,7 +109,7 @@ export default function TemplateSelection() {
               {/* Price */}
               <div className="mt-2 px-4 py-1 bg-accent/20 rounded-full">
                 <span className="text-sm font-bold text-text">
-                  ${template.price.toFixed(2)}
+                  Rp {template.price.toLocaleString()}
                 </span>
               </div>
             </motion.button>
@@ -129,7 +129,7 @@ export default function TemplateSelection() {
           whileTap={selectedTemplate ? { scale: 0.98 } : {}}
         >
           {selectedTemplate
-            ? `Continue with ${selectedTemplate.name} — $${selectedTemplate.price.toFixed(2)}`
+            ? `Continue with ${selectedTemplate.name} — Rp ${selectedTemplate.price.toLocaleString()}`
             : 'Select a template to continue'}
         </motion.button>
       </div>

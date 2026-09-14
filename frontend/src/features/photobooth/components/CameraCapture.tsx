@@ -1,6 +1,6 @@
 import React, { useRef, useEffect, useState, useCallback } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { usePhotoboothStore } from '../../../stores/photoboothStore'
+import { usePhotoboothStore, STEPS } from '../../../stores/photoboothStore'
 import { Camera, RefreshCw, X } from 'lucide-react'
 
 type CaptureState = 'preview' | 'countdown' | 'review'
@@ -115,15 +115,15 @@ export default function CameraCapture() {
 
   const handleContinue = async () => {
     await capturePhotos()
-    setStep('photo-review')
+    setStep(STEPS.PHOTO_REVIEW)
   }
 
   const handleBack = () => {
-    setStep('payment')
+    setStep(STEPS.PAYMENT)
   }
 
   if (!selectedTemplate) {
-    setStep('template-selection')
+    setStep(STEPS.TEMPLATE_SELECT)
     return null
   }
 

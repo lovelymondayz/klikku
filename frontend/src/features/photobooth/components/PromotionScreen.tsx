@@ -11,7 +11,7 @@ export default function PromotionScreen() {
       setStep(STEPS.IDLE)
     }, 30000)
     return () => clearTimeout(timer)
-  }, [])
+  }, [setStep])
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-br from-primary-subtle via-surface-alt to-info-subtle p-8">
@@ -20,13 +20,13 @@ export default function PromotionScreen() {
         animate={{ scale: 1, opacity: 1 }}
         className="text-center max-w-lg"
       >
-        <Sparkles className="w-16 h-16 text-yellow-400 mx-auto mb-4" />
+        <Sparkles className="w-16 h-16 text-primary mx-auto mb-4" />
         <h2 className="text-4xl font-bold mb-4">Thanks for visiting!</h2>
         <p className="text-text-muted mb-6">Follow us for more fun moments</p>
         <div className="flex gap-4 justify-center">
-          <Instagram className="w-10 h-10 text-pink-500" />
-          <Heart className="w-10 h-10 text-red-500" />
-          <Star className="w-10 h-10 text-yellow-500" />
+          <Instagram className="w-10 h-10 text-primary" />
+          <Heart className="w-10 h-10 text-danger" />
+          <Star className="w-10 h-10 text-warning" />
         </div>
         <button
           onClick={() => setStep(STEPS.IDLE)}

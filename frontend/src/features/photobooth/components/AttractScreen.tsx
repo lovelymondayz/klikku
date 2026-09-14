@@ -1,6 +1,6 @@
 import React, { useEffect, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { usePhotoboothStore } from '../../../stores/photoboothStore'
+import { usePhotoboothStore, STEPS } from '../../../stores/photoboothStore'
 import { Camera, Sparkles, QrCode } from 'lucide-react'
 
 export default function AttractScreen() {
@@ -13,7 +13,7 @@ export default function AttractScreen() {
   }, [])
 
   const handleStart = () => {
-    setStep('template-selection')
+    setStep(STEPS.TEMPLATE_SELECT)
   }
 
   return (
@@ -34,7 +34,7 @@ export default function AttractScreen() {
         transition={{ duration: 8, repeat: Infinity, ease: 'easeInOut' }}
       />
       <motion.div
-        className="absolute -bottom-20 -right-20 w-96 h-96 rounded-full bg-pink-400/20 blur-3xl"
+        className="absolute -bottom-20 -right-20 w-96 h-96 rounded-full bg-secondary/20 blur-3xl"
         animate={{ x: [0, -50, 0], y: [0, -30, 0], scale: [1, 1.3, 1] }}
         transition={{ duration: 10, repeat: Infinity, ease: 'easeInOut' }}
       />

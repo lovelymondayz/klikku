@@ -2,17 +2,18 @@ import { create } from 'zustand'
 import { api } from '../lib/api'
 
 export const STEPS = {
-  IDLE: 'IDLE',
-  TEMPLATE_SELECT: 'TEMPLATE_SELECT',
-  PAYMENT: 'PAYMENT',
-  CAPTURE: 'CAPTURE',
-  REVIEW: 'REVIEW',
-  PROCESSING: 'PROCESSING',
-  FINAL: 'FINAL',
-  EMAIL: 'EMAIL',
-  PROMOTION: 'PROMOTION',
-  DONE: 'DONE',
-}
+  IDLE: 'idle',
+  TEMPLATE_SELECT: 'template-select',
+  PAYMENT: 'payment',
+  CAPTURE: 'capture',
+  REVIEW: 'review',
+  PROCESSING: 'processing',
+  FINAL: 'final',
+  EMAIL_QR: 'email-qr',
+  PHOTO_REVIEW: 'photo-review',
+  PROMOTION: 'promotion',
+  DONE: 'done',
+} as const
 
 export const MOCK_TEMPLATES = [
   { id: '1', name: 'Classic Strip', photo_count: 4, price: 25000, preview_url: null, layout_config: { output_width: 1200, output_height: 1800 } },

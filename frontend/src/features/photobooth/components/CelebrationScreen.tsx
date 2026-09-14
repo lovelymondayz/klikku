@@ -1,29 +1,28 @@
 import React, { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { usePhotoboothStore } from '../../../stores/photoboothStore'
+import { usePhotoboothStore, STEPS } from '../../../stores/photoboothStore'
 import { Star, Heart, Sparkles, PartyPopper } from 'lucide-react'
+
+const PARTICLE_COUNT = 30
 
 export default function CelebrationScreen() {
   const { setStep } = usePhotoboothStore()
-  const [particles, setParticles] = useState<Array<{ id: number; x: number; y: number; color: string; size: number }>>([])
+  const [particles, setParticles] = useState<Array<{ id: number; x: number; y: number; size: number }>>([])
 
   useEffect(() => {
-    // Generate random celebration particles
-    const newParticles = Array.from({ length: 30 }, (_, i) => ({
+    const newParticles = Array.from({ length: PARTICLE_COUNT }, (_, i) => ({
       id: i,
       x: Math.random() * 100,
       y: Math.random() * 100,
-      color: ['#ff6b9d', '#c44dff', '#ffd93d', '#ff6b6b', '#4ecdc4'][Math.floor(Math.random() * 5)],
       size: Math.random() * 20 + 10,
     }))
     setParticles(newParticles)
 
-    // Auto-return to idle after 10 seconds
     const timer = setTimeout(() => {
-      setStep('IDLE')
+      setStep(STEPS.IDLE)
     }, 10000)
     return () => clearTimeout(timer)
-  }, [])
+  }, [setStep])
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary-subtle via-surface-alt to-info-subtle overflow-hidden relative">
@@ -31,13 +30,12 @@ export default function CelebrationScreen() {
       {particles.map((p) => (
         <motion.div
           key={p.id}
-          className="absolute rounded-full"
+          className="absolute rounded-full bg-primary"
           style={{
             left: `${p.x}%`,
             top: `${p.y}%`,
             width: p.size,
             height: p.size,
-            backgroundColor: p.color,
           }}
           initial={{ scale: 0, opacity: 0 }}
           animate={{
@@ -64,7 +62,7 @@ export default function CelebrationScreen() {
           animate={{ rotate: [0, 10, -10, 0] }}
           transition={{ duration: 0.5, delay: 0.5 }}
         >
-          <PartyPopper size={80} className="mx-auto text-pink-500 mb-6" />
+          <PartyPopper size={80} className="mx-auto text-primary mb-6" />
         </motion.div>
         <h1 className="text-5xl font-bold mb-4">Congratulations! 🎉</h1>
         <p className="text-xl text-text-muted mb-8">Your photos are being processed</p>
@@ -76,7 +74,7 @@ export default function CelebrationScreen() {
               animate={{ y: 0, opacity: 1 }}
               transition={{ delay: 0.8 + i * 0.1 }}
             >
-              <Star size={30} className="text-yellow-400 fill-yellow-400" />
+              <Star size={30} className="text-warning fill-warning" />
             </motion.div>
           ))}
         </div>

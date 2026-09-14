@@ -1,6 +1,6 @@
 import React from 'react'
 import { AnimatePresence } from 'framer-motion'
-import { usePhotoboothStore } from '../../stores/photoboothStore'
+import { usePhotoboothStore, STEPS } from '../../stores/photoboothStore'
 import AttractScreen from './components/AttractScreen'
 import TemplateSelection from './components/TemplateSelection'
 import PaymentScreen from './components/PaymentScreen'
@@ -15,13 +15,13 @@ export default function PhotoboothPage() {
   return (
     <div className="w-full h-full bg-surface overflow-hidden">
       <AnimatePresence mode="wait">
-        {currentStep === 'attract' && <AttractScreen key="attract" />}
-        {currentStep === 'template-selection' && <TemplateSelection key="template-selection" />}
-        {currentStep === 'payment' && <PaymentScreen key="payment" />}
-        {currentStep === 'camera-capture' && <CameraCapture key="camera-capture" />}
-        {currentStep === 'photo-review' && <PhotoReview key="photo-review" />}
-        {currentStep === 'email-qr' && <EmailQRScreen key="email-qr" />}
-        {currentStep === 'promotion' && <PromotionScreen key="promotion" />}
+        {currentStep === STEPS.IDLE && <AttractScreen key={STEPS.IDLE} />}
+        {currentStep === STEPS.TEMPLATE_SELECT && <TemplateSelection key={STEPS.TEMPLATE_SELECT} />}
+        {currentStep === STEPS.PAYMENT && <PaymentScreen key={STEPS.PAYMENT} />}
+        {currentStep === STEPS.CAPTURE && <CameraCapture key={STEPS.CAPTURE} />}
+        {currentStep === STEPS.PHOTO_REVIEW && <PhotoReview key={STEPS.PHOTO_REVIEW} />}
+        {currentStep === STEPS.EMAIL_QR && <EmailQRScreen key={STEPS.EMAIL_QR} />}
+        {currentStep === STEPS.PROMOTION && <PromotionScreen key={STEPS.PROMOTION} />}
       </AnimatePresence>
     </div>
   )

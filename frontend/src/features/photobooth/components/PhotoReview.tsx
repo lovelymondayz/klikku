@@ -1,6 +1,6 @@
 import React from 'react'
 import { motion } from 'framer-motion'
-import { usePhotoboothStore } from '../../../stores/photoboothStore'
+import { usePhotoboothStore, STEPS } from '../../../stores/photoboothStore'
 import { ArrowLeft, RotateCcw, Download, Sparkles, Image } from 'lucide-react'
 
 export default function PhotoReview() {
@@ -13,15 +13,15 @@ export default function PhotoReview() {
 
   const handleRetake = () => {
     clearCapturedPhotos()
-    setStep('camera-capture')
+    setStep(STEPS.CAPTURE)
   }
 
   const handleContinue = () => {
-    setStep('email-qr')
+    setStep(STEPS.EMAIL_QR)
   }
 
   if (!selectedTemplate) {
-    setStep('template-selection')
+    setStep(STEPS.TEMPLATE_SELECT)
     return null
   }
 
