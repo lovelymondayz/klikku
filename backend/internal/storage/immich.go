@@ -2,10 +2,11 @@ package storage
 
 import (
 	"bytes"
-	"encoding/json"
 	"fmt"
 	"io"
+	"mime/multipart"
 	"net/http"
+	"path/filepath"
 	"time"
 )
 
@@ -20,7 +21,7 @@ func NewImmich(apiKey, baseURL string) *Immich {
 		apiKey:  apiKey,
 		baseURL: baseURL,
 		client: &http.Client{
-			Timeout: 30 * time.Second,
+			Timeout: 60 * time.Second,
 		},
 	}
 }
@@ -28,13 +29,32 @@ func NewImmich(apiKey, baseURL string) *Immich {
 func (i *Immich) Upload(bucket, objectName string, data []byte, contentType string) error {
 	url := fmt.Sprintf("%s/api/assets", i.baseURL)
 
-	req, err := http.NewRequest("POST", url, bytes.NewReader(data))
+	var buf bytes.Buffer
+	writer := multipart.NewWriter(&buf)
+
+	part, err := writer.CreateFormFile("assetData", filepath.Base(objectName))
+	if err != nil {
+		return fmt.Errorf("create form file: %w", err)
+	}
+	if _, err := part.Write(data); err != nil {
+		return fmt.Errorf("write data: %w", err)
+	}
+
+	writer.WriteField("deviceAssetId", objectName)
+	writer.WriteField("deviceId", "klikku")
+	writer.WriteField("fileCreatedAt", time.Now().UTC().Format(time.RFC3339))
+	writer.WriteField("fileModifiedAt", time.Now().UTC().Format(time.RFC3339))
+	writer.WriteField("isFavorite", "false")
+
+	writer.Close()
+
+	req, err := http.NewRequest("POST", url, &buf)
 	if err != nil {
 		return fmt.Errorf("create request: %w", err)
 	}
 
 	req.Header.Set("x-api-key", i.apiKey)
-	req.Header.Set("Content-Type", contentType)
+	req.Header.Set("Content-Type", writer.FormDataContentType())
 
 	resp, err := i.client.Do(req)
 	if err != nil {
@@ -42,8 +62,9 @@ func (i *Immich) Upload(bucket, objectName string, data []byte, contentType stri
 	}
 	defer resp.Body.Close()
 
+	body, _ := io.ReadAll(resp.Body)
+
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		body, _ := io.ReadAll(resp.Body)
 		return fmt.Errorf("immich upload failed (status %d): %s", resp.StatusCode, string(body))
 	}
 
@@ -67,7 +88,7 @@ func (i *Immich) Download(bucket, objectName string) ([]byte, error) {
 	defer resp.Body.Close()
 
 	if resp.StatusCode != 200 {
-		return nil, fmt.Errorf("asset not found in immich")
+		return nil, fmt.Errorf("asset not found in immich (status %d)", resp.StatusCode)
 	}
 
 	return io.ReadAll(resp.Body)
@@ -90,7 +111,8 @@ func (i *Immich) Delete(bucket, objectName string) error {
 	defer resp.Body.Close()
 
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		return fmt.Errorf("immich delete failed (status %d)", resp.StatusCode)
+		body, _ := io.ReadAll(resp.Body)
+		return fmt.Errorf("immich delete failed (status %d): %s", resp.StatusCode, string(body))
 	}
 
 	return nil
@@ -130,7 +152,7 @@ func (i *Immich) GetURL(bucket, objectName string) string {
 }
 
 func (i *Immich) Ping() error {
-	url := fmt.Sprintf("%s/api/server-info", i.baseURL)
+	url := fmt.Sprintf("%s/api/albums", i.baseURL)
 
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
@@ -149,13 +171,5 @@ func (i *Immich) Ping() error {
 		return fmt.Errorf("immich ping failed (status %d)", resp.StatusCode)
 	}
 
-	var info struct {
-		Version string `json:"version"`
-	}
-	if err := json.NewDecoder(resp.Body).Decode(&info); err != nil {
-		return fmt.Errorf("decode immich response: %w", err)
-	}
-
-	fmt.Printf("✅ Immich connected (v%s)\n", info.Version)
 	return nil
 }
