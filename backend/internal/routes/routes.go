@@ -19,8 +19,8 @@ func Setup(app *gin.Engine, db *pgxpool.Pool, storage *utils.Storage, cfg *confi
 	api.POST("/auth/logout", handlers.Logout())
 
 	// Public photobooth endpoints (device-facing)
-	api.GET("/devices/:token/attract", handlers.GetAttractScreen(db))
-	api.POST("/devices/:token/session", handlers.CreateSession(db))
+	api.GET("/device/:token/attract", handlers.GetAttractScreen(db))
+	api.POST("/device/:token/session", handlers.CreateSession(db))
 	api.GET("/sessions/:id", handlers.GetSession(db))
 	api.POST("/sessions/:id/capture", handlers.CapturePhoto(db, storage))
 	api.GET("/sessions/:id/download", handlers.DownloadSession(db))
@@ -61,9 +61,8 @@ func Setup(app *gin.Engine, db *pgxpool.Pool, storage *utils.Storage, cfg *confi
 
 	// Sessions & Gallery
 	merchant.GET("/sessions", handlers.ListSessions(db))
-	merchant.GET("/sessions/:id", handlers.GetSessionDetail(db))
+	merchant.GET("/sessions/:id/detail", handlers.GetSessionDetail(db))
 	merchant.DELETE("/sessions/:id", handlers.DeleteSession(db))
-	merchant.POST("/sessions/:id/resend-email", handlers.ResendEmail(db, storage))
 
 	// Print Jobs
 	merchant.GET("/print-jobs", handlers.ListPrintJobs(db))
