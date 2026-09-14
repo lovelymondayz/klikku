@@ -70,10 +70,10 @@ func GetPrintJob(db *pgxpool.Pool) fiber.Handler {
 
 		var sessionID, deviceID, printType, status, printerName, errorMessage string
 		var copies int
-		var createdAt, printedAt string
+		var createdAt, printedAt *time.Time
 
 		err := db.QueryRow(context.Background(),
-			"SELECT id, session_id, device_id, print_type, copies, status, created_at, printed_at FROM print_jobs WHERE id = $1",
+			"SELECT id, session_id, device_id, print_type, copies, status, printer_name, error_message, created_at, printed_at FROM print_jobs WHERE id = $1",
 			id).Scan(&id, &sessionID, &deviceID, &printType, &copies, &status, &printerName, &errorMessage, &createdAt, &printedAt)
 		if err != nil {
 			return utils.Error(c, fiber.StatusNotFound, "print job not found")

@@ -106,9 +106,9 @@ func CapturePhoto(db *pgxpool.Pool, storage *utils.Storage, cfg *config.Config) 
 			if err != nil {
 				continue
 			}
-			defer f.Close()
 
 			data, err := io.ReadAll(f)
+			f.Close()
 			if err != nil {
 				continue
 			}
@@ -215,7 +215,6 @@ func GetSessionDetail(db *pgxpool.Pool) fiber.Handler {
 			return utils.Error(c, fiber.StatusBadRequest, "invalid session ID")
 		}
 
-		var session map[string]interface{}
 		var mID, deviceID, campaignID, templateID, status, paymentStatus, email string
 		var finalImageURL string
 		var createdAt time.Time
@@ -227,6 +226,20 @@ func GetSessionDetail(db *pgxpool.Pool) fiber.Handler {
 			&id, &mID, &deviceID, &campaignID, &templateID, &status, &paymentStatus, &email, &finalImageURL, &createdAt, &completedAt)
 		if err != nil {
 			return utils.Error(c, fiber.StatusNotFound, "session not found")
+		}
+
+		session := map[string]interface{}{
+			"id":             id,
+			"merchant_id":    mID,
+			"device_id":      deviceID,
+			"campaign_id":    campaignID,
+			"template_id":    templateID,
+			"status":         status,
+			"payment_status": paymentStatus,
+			"email":          email,
+			"final_image_url": finalImageURL,
+			"created_at":     createdAt,
+			"completed_at":   completedAt,
 		}
 
 		rows, err := db.Query(context.Background(),

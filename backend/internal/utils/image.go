@@ -95,9 +95,9 @@ func composeWithGoImage(photoPaths []string, width, height int, outputPath strin
 		if err != nil {
 			continue
 		}
-		defer file.Close()
 
 		img, _, err := image.Decode(file)
+		file.Close()
 		if err != nil {
 			continue
 		}

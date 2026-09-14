@@ -15,4 +15,3 @@ ALTER TABLE print_jobs ADD COLUMN IF NOT EXISTS error_message TEXT;
 
 -- Add payment_reference column to payments
 ALTER TABLE payments ADD COLUMN IF NOT EXISTS transaction_reference VARCHAR(255);
-ALTER TABLE payments ADD COLUMN IF NOT EXISTS payment_method VARCHAR(50);
