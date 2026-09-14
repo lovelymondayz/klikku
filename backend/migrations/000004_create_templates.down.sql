@@ -1,0 +1,2 @@
+-- +migrate Down
+-- Rollback for 000004_create_templates.up.sql

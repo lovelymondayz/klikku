@@ -1,0 +1,2 @@
+-- +migrate Down
+-- Rollback for 000002_create_users.up.sql

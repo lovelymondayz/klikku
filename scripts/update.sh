@@ -4,7 +4,7 @@ set -euo pipefail
 # Klikku Deploy Script
 # Triggered by GitHub webhook on push to main
 
-PROJECT_DIR="/root/hermes/klikku"
+PROJECT_DIR="/root/hermes/projects/klikku"
 cd "$PROJECT_DIR"
 
 echo "=== Pulling latest code ==="

@@ -1,0 +1,2 @@
+-- +migrate Down
+-- Rollback for 000009_create_print_jobs.up.sql

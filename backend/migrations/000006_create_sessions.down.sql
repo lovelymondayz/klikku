@@ -1,0 +1,2 @@
+-- +migrate Down
+-- Rollback for 000006_create_sessions.up.sql

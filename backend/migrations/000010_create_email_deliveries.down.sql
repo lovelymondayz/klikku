@@ -1,0 +1,2 @@
+-- +migrate Down
+-- Rollback for 000010_create_email_deliveries.up.sql

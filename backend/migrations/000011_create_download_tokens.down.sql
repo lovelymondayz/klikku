@@ -1,0 +1,2 @@
+-- +migrate Down
+-- Rollback for 000011_create_download_tokens.up.sql

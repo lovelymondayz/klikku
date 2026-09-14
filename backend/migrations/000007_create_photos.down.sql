@@ -1,0 +1,2 @@
+-- +migrate Down
+-- Rollback for 000007_create_photos.up.sql

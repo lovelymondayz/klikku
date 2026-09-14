@@ -1,0 +1,2 @@
+-- +migrate Down
+-- Rollback for 000008_create_payments.up.sql

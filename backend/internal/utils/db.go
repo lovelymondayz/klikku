@@ -12,7 +12,6 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/jackc/pgx/v5/stdlib"
 	"klikku/internal/config"
-	"klikku/internal/models"
 	"golang.org/x/crypto/bcrypt"
 )
 
@@ -49,7 +48,6 @@ func RunMigrations(pool *pgxpool.Pool, dbName string) error {
 	db := stdlib.OpenDBFromPool(pool)
 	defer db.Close()
 
-	// Create migrations tracking table
 	_, err := db.Exec(`
 		CREATE TABLE IF NOT EXISTS schema_migrations (
 			version INT PRIMARY KEY,
@@ -60,7 +58,6 @@ func RunMigrations(pool *pgxpool.Pool, dbName string) error {
 		return fmt.Errorf("create migrations table: %w", err)
 	}
 
-	// Read migration files
 	migrationsDir := "./migrations"
 	files, err := os.ReadDir(migrationsDir)
 	if err != nil {
@@ -75,11 +72,9 @@ func RunMigrations(pool *pgxpool.Pool, dbName string) error {
 			continue
 		}
 
-		// Extract version from filename (e.g., 000001_create_merchants.up.sql -> 1)
 		var version int
 		fmt.Sscanf(f.Name(), "%d", &version)
 
-		// Check if already applied
 		var applied bool
 		err := db.QueryRow("SELECT EXISTS(SELECT 1 FROM schema_migrations WHERE version = $1)", version).Scan(&applied)
 		if err != nil {
@@ -89,7 +84,6 @@ func RunMigrations(pool *pgxpool.Pool, dbName string) error {
 			continue
 		}
 
-		// Read and execute migration
 		path := filepath.Join(migrationsDir, f.Name())
 		content, err := os.ReadFile(path)
 		if err != nil {
@@ -98,26 +92,16 @@ func RunMigrations(pool *pgxpool.Pool, dbName string) error {
 
 		log.Printf("Running migration: %s", f.Name())
 
-		// Execute migration in a transaction
 		tx, err := db.Begin()
 		if err != nil {
 			return fmt.Errorf("begin tx for %s: %w", f.Name(), err)
 		}
 
-		// Split by statements and execute each
-		statements := strings.Split(string(content), ";")
-		for _, stmt := range statements {
-			stmt = strings.TrimSpace(stmt)
-			if stmt == "" || strings.HasPrefix(stmt, "--") {
-				continue
-			}
-			if _, err := tx.Exec(stmt); err != nil {
-				tx.Rollback()
-				return fmt.Errorf("execute %s: %w", f.Name(), err)
-			}
+		if _, err := tx.Exec(string(content)); err != nil {
+			tx.Rollback()
+			return fmt.Errorf("execute %s: %w", f.Name(), err)
 		}
 
-		// Record migration
 		if _, err := tx.Exec("INSERT INTO schema_migrations (version) VALUES ($1)", version); err != nil {
 			tx.Rollback()
 			return fmt.Errorf("record migration %d: %w", version, err)
@@ -140,11 +124,10 @@ func SeedSuperAdmin(pool *pgxpool.Pool, cfg *config.Config) error {
 	if err != nil {
 		return err
 	}
-	// Create default merchant if none exists
+
 	var merchantID string
 	err = pool.QueryRow(ctx, "SELECT id FROM merchants LIMIT 1").Scan(&merchantID)
 	if err != nil {
-		// No merchants exist, create one
 		err = pool.QueryRow(ctx, "INSERT INTO merchants (business_name, slug, subscription_status) VALUES ($1, $2, $3) RETURNING id",
 			"Default Merchant", "default", "active").Scan(&merchantID)
 		if err != nil {
@@ -164,7 +147,7 @@ func SeedSuperAdmin(pool *pgxpool.Pool, cfg *config.Config) error {
 	}
 
 	_, err = pool.Exec(ctx, `INSERT INTO users (name, email, password_hash, role, merchant_id) VALUES ($1, $2, $3, $4, $5)`,
-		"Super Admin", cfg.SuperAdminEmail, string(hash), models.RoleSuperAdmin, merchantID)
+		"Super Admin", cfg.SuperAdminEmail, string(hash), "SUPER_ADMIN", merchantID)
 	if err != nil {
 		return fmt.Errorf("create super admin: %w", err)
 	}

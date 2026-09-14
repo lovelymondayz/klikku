@@ -1,0 +1,2 @@
+-- +migrate Down
+-- Rollback for 000003_create_campaigns.up.sql

@@ -1,0 +1,2 @@
+-- +migrate Down
+-- Rollback for 000001_create_merchants.up.sql

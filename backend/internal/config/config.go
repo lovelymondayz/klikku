@@ -1,6 +1,7 @@
 package config
 
 import (
+	"fmt"
 	"os"
 	"strconv"
 	"time"
@@ -29,10 +30,10 @@ type Config struct {
 }
 
 func Load() *Config {
-	return &Config{
+	cfg := &Config{
 		AppPort:     getEnv("APP_PORT", "8083"),
 		AppEnv:      getEnv("APP_ENV", "production"),
-		JWTSecret:   getEnv("JWT_SECRET", ""),
+		JWTSecret:   os.Getenv("JWT_SECRET"),
 		JWTExpiry:   getDuration("JWT_EXPIRY_MIN", 15),
 		RefreshExpiry: getDuration("REFRESH_EXPIRY_HOUR", 168),
 
@@ -42,14 +43,29 @@ func Load() *Config {
 		DBPassword: getEnv("DB_PASSWORD", "klikku"),
 		DBName:     getEnv("DB_NAME", "klikku"),
 
-		BrevoAPIKey:    getEnv("BREVO_API_KEY", ""),
+		BrevoAPIKey:    os.Getenv("BREVO_API_KEY"),
 		BrevoSender:    getEnv("BREVO_SENDER", "Klikku"),
 		BrevoSenderEmail: getEnv("BREVO_SENDER_EMAIL", "no-reply@klikku.arjism.com"),
 
 		FrontendURL:   getEnv("FRONTEND_URL", "https://klikku.arjism.com"),
 		SuperAdminEmail: getEnv("SUPER_ADMIN_EMAIL", "admin@klikku.arjism.com"),
-		SuperAdminPassword: getEnv("SUPER_ADMIN_PASSWORD", "admin123"),
+		SuperAdminPassword: os.Getenv("SUPER_ADMIN_PASSWORD"),
 	}
+
+	if cfg.JWTSecret == "" {
+		panic("JWT_SECRET environment variable is required")
+	}
+
+	if cfg.AppEnv == "production" && cfg.SuperAdminPassword == "" {
+		panic("SUPER_ADMIN_PASSWORD environment variable is required in production")
+	}
+
+	if cfg.SuperAdminPassword == "" {
+		cfg.SuperAdminPassword = "admin123"
+		fmt.Println("⚠️  WARNING: Using default super admin password. Set SUPER_ADMIN_PASSWORD env var!")
+	}
+
+	return cfg
 }
 
 func getEnv(key, fallback string) string {
