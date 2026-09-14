@@ -3,51 +3,46 @@ package middleware
 import (
 	"strings"
 
-	"github.com/gofiber/fiber/v2"
+	"github.com/gin-gonic/gin"
 	"klikku/internal/utils"
 )
 
-func AuthMiddleware(c *fiber.Ctx) error {
-	authHeader := c.Get("Authorization")
+func AuthMiddleware(c *gin.Context) {
+	authHeader := c.GetHeader("Authorization")
 	if authHeader == "" {
-		return utils.Error(c, fiber.StatusUnauthorized, "missing authorization header")
+		utils.Error(c, 401, "missing authorization header")
+		c.Abort()
+		return
 	}
 
 	tokenString := strings.TrimPrefix(authHeader, "Bearer ")
 	if tokenString == authHeader {
-		return utils.Error(c, fiber.StatusUnauthorized, "invalid authorization format")
+		utils.Error(c, 401, "invalid authorization format")
+		c.Abort()
+		return
 	}
 
 	cfg := utils.GetConfig(c)
 	claims, err := utils.ValidateToken(tokenString, cfg)
 	if err != nil {
-		return utils.Error(c, fiber.StatusUnauthorized, "invalid or expired token")
+		utils.Error(c, 401, "invalid or expired token")
+		c.Abort()
+		return
 	}
 
-	c.Locals("user_id", claims.UserID)
-	c.Locals("merchant_id", claims.MerchantID)
-	c.Locals("role", claims.Role)
-	c.Locals("email", claims.Email)
-
-	return c.Next()
+	c.Set("user_id", claims.UserID)
+	c.Set("merchant_id", claims.MerchantID)
+	c.Set("role", claims.Role)
+	c.Set("email", claims.Email)
+	c.Next()
 }
 
-func RoleMiddleware(roles ...string) fiber.Handler {
-	return func(c *fiber.Ctx) error {
-		userRole := c.Locals("role").(string)
-		for _, role := range roles {
-			if userRole == role {
-				return c.Next()
-			}
-		}
-		return utils.Error(c, fiber.StatusForbidden, "insufficient permissions")
+func SuperAdminMiddleware(c *gin.Context) {
+	role, exists := c.Get("role")
+	if !exists || role.(string) != "SUPER_ADMIN" {
+		utils.Error(c, 403, "super admin access required")
+		c.Abort()
+		return
 	}
-}
-
-func SuperAdminMiddleware(c *fiber.Ctx) error {
-	role := c.Locals("role").(string)
-	if role != "SUPER_ADMIN" {
-		return utils.Error(c, fiber.StatusForbidden, "super admin access required")
-	}
-	return c.Next()
+	c.Next()
 }

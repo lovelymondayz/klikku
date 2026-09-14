@@ -19,13 +19,6 @@ type Config struct {
 	DBPassword string
 	DBName     string
 
-	MinIOEndpoint  string
-	MinIOAccessKey string
-	MinIOSecretKey string
-	MinIOBucket    string
-	MinIORegion    string
-	MinIOUseSSL    bool
-
 	BrevoAPIKey    string
 	BrevoSender    string
 	BrevoSenderEmail string
@@ -39,22 +32,15 @@ func Load() *Config {
 	return &Config{
 		AppPort:     getEnv("APP_PORT", "8083"),
 		AppEnv:      getEnv("APP_ENV", "production"),
-		JWTSecret:   getEnv("JWT_SECRET", "change-me-in-production"),
+		JWTSecret:   getEnv("JWT_SECRET", ""),
 		JWTExpiry:   getDuration("JWT_EXPIRY_MIN", 15),
-		RefreshExpiry: getDuration("REFRESH_EXPIRY_HOUR", 168), // 7 days
+		RefreshExpiry: getDuration("REFRESH_EXPIRY_HOUR", 168),
 
 		DBHost:     getEnv("DB_HOST", "postgres"),
 		DBPort:     getInt("DB_PORT", 5432),
 		DBUser:     getEnv("DB_USER", "klikku"),
 		DBPassword: getEnv("DB_PASSWORD", "klikku"),
 		DBName:     getEnv("DB_NAME", "klikku"),
-
-		MinIOEndpoint:  getEnv("MINIO_ENDPOINT", "minio:8089"),
-		MinIOAccessKey: getEnv("MINIO_ACCESS_KEY", "minioadmin"),
-		MinIOSecretKey: getEnv("MINIO_SECRET_KEY", "minioadmin"),
-		MinIOBucket:    getEnv("MINIO_BUCKET", "klikku"),
-		MinIORegion:    getEnv("MINIO_REGION", "us-east-1"),
-		MinIOUseSSL:    getBool("MINIO_USE_SSL", false),
 
 		BrevoAPIKey:    getEnv("BREVO_API_KEY", ""),
 		BrevoSender:    getEnv("BREVO_SENDER", "Klikku"),

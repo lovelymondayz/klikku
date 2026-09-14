@@ -39,6 +39,12 @@ services:
       - "${BACKEND_PORT:-8083}:8083"
     volumes:
       - storage_data:/app/storage
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:8083/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
     logging:
       driver: json-file
       options:

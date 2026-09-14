@@ -4,21 +4,18 @@ import (
 	"context"
 	"time"
 
-	"github.com/gofiber/fiber/v2"
-	"github.com/google/uuid"
+	"github.com/gin-gonic/gin"
 	"github.com/jackc/pgx/v5/pgxpool"
-	"klikku/internal/config"
-	"klikku/internal/models"
 	"klikku/internal/utils"
-	"golang.org/x/crypto/bcrypt"
 )
 
-func AdminListMerchants(db *pgxpool.Pool) fiber.Handler {
-	return func(c *fiber.Ctx) error {
+func AdminListMerchants(db *pgxpool.Pool) gin.HandlerFunc {
+	return func(c *gin.Context) {
 		rows, err := db.Query(context.Background(),
 			"SELECT id, business_name, slug, logo_url, primary_color, subscription_status, created_at FROM merchants ORDER BY created_at DESC")
 		if err != nil {
-			return utils.Error(c, fiber.StatusInternalServerError, "failed to fetch merchants")
+			utils.Error(c, 500, "failed to fetch merchants")
+			return
 		}
 		defer rows.Close()
 
@@ -41,45 +38,39 @@ func AdminListMerchants(db *pgxpool.Pool) fiber.Handler {
 			})
 		}
 
-		return utils.Success(c, merchants)
+		utils.Success(c, merchants)
 	}
 }
 
-func AdminCreateMerchant(db *pgxpool.Pool, cfg *config.Config) fiber.Handler {
-	return func(c *fiber.Ctx) error {
+func AdminCreateMerchant(db *pgxpool.Pool) gin.HandlerFunc {
+	return func(c *gin.Context) {
 		var req struct {
-			BusinessName string `json:"business_name"`
-			Slug         string `json:"slug"`
-			AdminName    string `json:"admin_name"`
-			AdminEmail   string `json:"admin_email"`
-			AdminPassword string `json:"admin_password"`
+			BusinessName  string `json:"business_name" binding:"required"`
+			Slug          string `json:"slug"`
+			AdminName     string `json:"admin_name"`
+			AdminEmail    string `json:"admin_email" binding:"required,email"`
+			AdminPassword string `json:"admin_password" binding:"required,min=6"`
 		}
-		if err := c.BodyParser(&req); err != nil {
-			return utils.Error(c, fiber.StatusBadRequest, "invalid request body")
-		}
-
-		if req.BusinessName == "" || req.AdminEmail == "" || req.AdminPassword == "" {
-			return utils.Error(c, fiber.StatusBadRequest, "missing required fields")
-		}
-
-		slug := req.Slug
-		if slug == "" {
-			slug = req.AdminEmail
+		if err := c.ShouldBindJSON(&req); err != nil {
+			utils.Error(c, 400, "invalid request body: "+err.Error())
+			return
 		}
 
 		// Create merchant
 		var merchantID string
 		err := db.QueryRow(context.Background(),
 			"INSERT INTO merchants (business_name, slug, subscription_status) VALUES ($1, $2, 'active') RETURNING id",
-			req.BusinessName, slug).Scan(&merchantID)
+			req.BusinessName, req.Slug).Scan(&merchantID)
 		if err != nil {
-			return utils.Error(c, fiber.StatusInternalServerError, "failed to create merchant")
+			utils.Error(c, 500, "failed to create merchant")
+			return
 		}
 
-		// Hash password and create admin user
-		hash, err := bcrypt.GenerateFromPassword([]byte(req.AdminPassword), bcrypt.DefaultCost)
+		// Hash password
+		hash, err := utils.HashPassword(req.AdminPassword)
 		if err != nil {
-			return utils.Error(c, fiber.StatusInternalServerError, "failed to process password")
+			utils.Error(c, 500, "failed to process password")
+			return
 		}
 
 		var userID string
@@ -89,69 +80,66 @@ func AdminCreateMerchant(db *pgxpool.Pool, cfg *config.Config) fiber.Handler {
 		}
 		err = db.QueryRow(context.Background(),
 			"INSERT INTO users (name, email, password_hash, role, merchant_id) VALUES ($1, $2, $3, $4, $5) RETURNING id",
-			name, req.AdminEmail, string(hash), models.RoleMerchantAdmin, merchantID).Scan(&userID)
+			name, req.AdminEmail, hash, "MERCHANT_ADMIN", merchantID).Scan(&userID)
 		if err != nil {
-			return utils.Error(c, fiber.StatusInternalServerError, "failed to create admin user")
+			utils.Error(c, 500, "failed to create admin user")
+			return
 		}
 
-		return c.Status(fiber.StatusCreated).JSON(fiber.Map{"success": true, "merchant_id": merchantID, "admin_id": userID})
+		c.JSON(201, gin.H{"success": true, "merchant_id": merchantID, "admin_id": userID})
 	}
 }
 
-func AdminUpdateMerchant(db *pgxpool.Pool) fiber.Handler {
-	return func(c *fiber.Ctx) error {
-		id := c.Params("id")
-		_, err := uuid.Parse(id)
-		if err != nil {
-			return utils.Error(c, fiber.StatusBadRequest, "invalid merchant ID")
-		}
+func AdminUpdateMerchant(db *pgxpool.Pool) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		id := c.Param("id")
 
 		var req struct {
-			BusinessName     string `json:"business_name"`
+			BusinessName      string `json:"business_name"`
 			SubscriptionStatus string `json:"subscription_status"`
-			PrimaryColor     string `json:"primary_color"`
+			PrimaryColor      string `json:"primary_color"`
 		}
-		if err := c.BodyParser(&req); err != nil {
-			return utils.Error(c, fiber.StatusBadRequest, "invalid request body")
+		if err := c.ShouldBindJSON(&req); err != nil {
+			utils.Error(c, 400, "invalid request body")
+			return
 		}
 
-		_, err = db.Exec(context.Background(),
+		_, err := db.Exec(context.Background(),
 			"UPDATE merchants SET business_name = COALESCE(NULLIF($1, ''), business_name), subscription_status = COALESCE(NULLIF($2, ''), subscription_status), primary_color = COALESCE(NULLIF($3, ''), primary_color) WHERE id = $4",
 			req.BusinessName, req.SubscriptionStatus, req.PrimaryColor, id)
 		if err != nil {
-			return utils.Error(c, fiber.StatusInternalServerError, "failed to update merchant")
+			utils.Error(c, 500, "failed to update merchant")
+			return
 		}
 
-		return utils.Message(c, "merchant updated")
+		utils.Message(c, "merchant updated")
 	}
 }
 
-func AdminDeleteMerchant(db *pgxpool.Pool) fiber.Handler {
-	return func(c *fiber.Ctx) error {
-		id := c.Params("id")
-		_, err := uuid.Parse(id)
+func AdminDeleteMerchant(db *pgxpool.Pool) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		id := c.Param("id")
+
+		_, err := db.Exec(context.Background(), "DELETE FROM merchants WHERE id = $1", id)
 		if err != nil {
-			return utils.Error(c, fiber.StatusBadRequest, "invalid merchant ID")
+			utils.Error(c, 500, "failed to delete merchant")
+			return
 		}
 
-		_, err = db.Exec(context.Background(), "DELETE FROM merchants WHERE id = $1", id)
-		if err != nil {
-			return utils.Error(c, fiber.StatusInternalServerError, "failed to delete merchant")
-		}
-
-		return utils.Message(c, "merchant deleted")
+		utils.Message(c, "merchant deleted")
 	}
 }
 
-func AdminListAllSessions(db *pgxpool.Pool) fiber.Handler {
-	return func(c *fiber.Ctx) error {
+func AdminListAllSessions(db *pgxpool.Pool) gin.HandlerFunc {
+	return func(c *gin.Context) {
 		rows, err := db.Query(context.Background(),
 			`SELECT s.id, s.merchant_id, s.status, s.payment_status, s.email, s.created_at, m.business_name 
 			 FROM photobooth_sessions s
 			 JOIN merchants m ON m.id = s.merchant_id
 			 ORDER BY s.created_at DESC LIMIT 100`)
 		if err != nil {
-			return utils.Error(c, fiber.StatusInternalServerError, "failed to fetch sessions")
+			utils.Error(c, 500, "failed to fetch sessions")
+			return
 		}
 		defer rows.Close()
 
@@ -174,12 +162,12 @@ func AdminListAllSessions(db *pgxpool.Pool) fiber.Handler {
 			})
 		}
 
-		return utils.Success(c, sessions)
+		utils.Success(c, sessions)
 	}
 }
 
-func AdminGetPlatformAnalytics(db *pgxpool.Pool) fiber.Handler {
-	return func(c *fiber.Ctx) error {
+func AdminGetPlatformAnalytics(db *pgxpool.Pool) gin.HandlerFunc {
+	return func(c *gin.Context) {
 		var merchants, activeDevices, totalSessions, photos, prints, emails int
 		var revenue float64
 
@@ -191,7 +179,7 @@ func AdminGetPlatformAnalytics(db *pgxpool.Pool) fiber.Handler {
 		db.QueryRow(context.Background(), "SELECT COUNT(*) FROM email_deliveries").Scan(&emails)
 		db.QueryRow(context.Background(), "SELECT COALESCE(SUM(amount), 0) FROM payments").Scan(&revenue)
 
-		return utils.Success(c, map[string]interface{}{
+		utils.Success(c, map[string]interface{}{
 			"merchants":     merchants,
 			"active_devices": activeDevices,
 			"total_sessions": totalSessions,

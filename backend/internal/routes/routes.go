@@ -1,7 +1,7 @@
 package routes
 
 import (
-	"github.com/gofiber/fiber/v2"
+	"github.com/gin-gonic/gin"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"klikku/internal/config"
 	"klikku/internal/handlers"
@@ -9,87 +9,96 @@ import (
 	"klikku/internal/utils"
 )
 
-func Setup(app *fiber.App, db *pgxpool.Pool, storage *utils.Storage, cfg *config.Config) {
+func Setup(app *gin.Engine, db *pgxpool.Pool, storage *utils.Storage, cfg *config.Config) {
 	api := app.Group("/api")
 
 	// Public routes
-	api.Post("/auth/register", handlers.Register(db, cfg))
-	api.Post("/auth/login", handlers.Login(db, cfg))
-	api.Post("/auth/refresh", handlers.RefreshToken(db, cfg))
-	api.Post("/auth/logout", handlers.Logout())
+	api.POST("/auth/register", handlers.Register(db))
+	api.POST("/auth/login", handlers.Login(db))
+	api.POST("/auth/refresh", handlers.RefreshToken(db))
+	api.POST("/auth/logout", handlers.Logout())
 
 	// Public photobooth endpoints (device-facing)
-	api.Get("/devices/:token/attract", handlers.GetAttractScreen(db))
-	api.Post("/devices/:token/session", handlers.CreateSession(db))
-	api.Get("/sessions/:id", handlers.GetSession(db))
-	api.Post("/sessions/:id/capture", handlers.CapturePhoto(db, storage, cfg))
-	api.Get("/sessions/:id/download", handlers.DownloadSession(db))
-	api.Post("/sessions/:id/finalize", handlers.FinalizeSession(db, storage, cfg))
-	api.Get("/download/:id", handlers.DownloadFinal(db, storage))
-	api.Get("/download/:id/secure", handlers.ValidateDownloadToken(db, storage))
-	api.Post("/sessions/:id/generate-link", handlers.GenerateSecureDownloadURL(db))
-	api.Post("/sessions/:id/auto-print", handlers.AutoPrintJob(db, storage))
-	api.Post("/sessions/:id/send-email", handlers.SendEmailDelivery(db, storage, cfg))
-	api.Post("/sessions/:id/resend-email", handlers.ResendEmail(db, storage, cfg))
+	api.GET("/devices/:token/attract", handlers.GetAttractScreen(db))
+	api.POST("/devices/:token/session", handlers.CreateSession(db))
+	api.GET("/sessions/:id", handlers.GetSession(db))
+	api.POST("/sessions/:id/capture", handlers.CapturePhoto(db, storage))
+	api.GET("/sessions/:id/download", handlers.DownloadSession(db))
+	api.POST("/sessions/:id/finalize", handlers.FinalizeSession(db, storage))
+	api.GET("/download/:id", handlers.DownloadFinal(db, storage))
+	api.GET("/download/:id/secure", handlers.ValidateDownloadToken(db, storage))
+	api.POST("/sessions/:id/generate-link", handlers.GenerateSecureDownloadURL(db))
+	api.POST("/sessions/:id/auto-print", handlers.AutoPrintJob(db, storage))
+	api.POST("/sessions/:id/send-email", handlers.SendEmailDelivery(db, storage))
+	api.POST("/sessions/:id/resend-email", handlers.ResendEmail(db, storage))
 
 	// Protected routes
-	auth := api.Group("/", middleware.AuthMiddleware)
-	auth.Get("/auth/me", handlers.GetCurrentUser(db))
+	auth := api.Group("/")
+	auth.Use(func(c *gin.Context) {
+		middleware.AuthMiddleware(c)
+	})
+	auth.GET("/auth/me", handlers.GetCurrentUser(db))
 
 	// Merchant-scoped routes
-	merchant := auth.Group("/", middleware.TenantMiddleware)
+	merchant := auth.Group("/")
+	merchant.Use(func(c *gin.Context) {
+		middleware.TenantMiddleware(c)
+	})
 
 	// Campaigns
-	merchant.Get("/campaigns", handlers.ListCampaigns(db))
-	merchant.Post("/campaigns", handlers.CreateCampaign(db))
-	merchant.Get("/campaigns/:id", handlers.GetCampaign(db))
-	merchant.Put("/campaigns/:id", handlers.UpdateCampaign(db))
-	merchant.Delete("/campaigns/:id", handlers.DeleteCampaign(db))
+	merchant.GET("/campaigns", handlers.ListCampaigns(db))
+	merchant.POST("/campaigns", handlers.CreateCampaign(db))
+	merchant.GET("/campaigns/:id", handlers.GetCampaign(db))
+	merchant.PUT("/campaigns/:id", handlers.UpdateCampaign(db))
+	merchant.DELETE("/campaigns/:id", handlers.DeleteCampaign(db))
 
 	// Templates
-	merchant.Get("/templates", handlers.ListTemplates(db))
-	merchant.Post("/templates", handlers.CreateTemplate(db))
-	merchant.Get("/templates/:id", handlers.GetTemplate(db))
-	merchant.Put("/templates/:id", handlers.UpdateTemplate(db))
-	merchant.Delete("/templates/:id", handlers.DeleteTemplate(db))
+	merchant.GET("/templates", handlers.ListTemplates(db))
+	merchant.POST("/templates", handlers.CreateTemplate(db))
+	merchant.GET("/templates/:id", handlers.GetTemplate(db))
+	merchant.PUT("/templates/:id", handlers.UpdateTemplate(db))
+	merchant.DELETE("/templates/:id", handlers.DeleteTemplate(db))
 
 	// Sessions & Gallery
-	merchant.Get("/sessions", handlers.ListSessions(db))
-	merchant.Get("/sessions/:id", handlers.GetSessionDetail(db))
-	merchant.Delete("/sessions/:id", handlers.DeleteSession(db))
-	merchant.Post("/sessions/:id/resend-email", handlers.ResendEmail(db, storage, cfg))
+	merchant.GET("/sessions", handlers.ListSessions(db))
+	merchant.GET("/sessions/:id", handlers.GetSessionDetail(db))
+	merchant.DELETE("/sessions/:id", handlers.DeleteSession(db))
+	merchant.POST("/sessions/:id/resend-email", handlers.ResendEmail(db, storage))
 
 	// Print Jobs
-	merchant.Get("/print-jobs", handlers.ListPrintJobs(db))
-	merchant.Get("/print-jobs/:id", handlers.GetPrintJob(db))
-	merchant.Post("/sessions/:id/print", handlers.CreatePrintJob(db, storage))
-	merchant.Put("/print-jobs/:id/status", handlers.UpdatePrintJobStatus(db))
-	merchant.Post("/sessions/:id/reprint", handlers.Reprint(db, storage))
-	merchant.Get("/print-jobs/pending", handlers.GetPendingPrintJobs(db))
+	merchant.GET("/print-jobs", handlers.ListPrintJobs(db))
+	merchant.GET("/print-jobs/:id", handlers.GetPrintJob(db))
+	merchant.POST("/sessions/:id/print", handlers.CreatePrintJob(db, storage))
+	merchant.PUT("/print-jobs/:id/status", handlers.UpdatePrintJobStatus(db))
+	merchant.POST("/sessions/:id/reprint", handlers.Reprint(db, storage))
+	merchant.GET("/print-jobs/pending", handlers.GetPendingPrintJobs(db))
 
 	// Branding
-	merchant.Get("/branding", handlers.GetBranding(db))
-	merchant.Put("/branding", handlers.UpdateBranding(db, storage, cfg))
+	merchant.GET("/branding", handlers.GetBranding(db))
+	merchant.PUT("/branding", handlers.UpdateBranding(db, storage))
 
 	// Devices
-	merchant.Get("/devices", handlers.ListDevices(db))
-	merchant.Post("/devices", handlers.CreateDevice(db))
-	merchant.Get("/devices/:id", handlers.GetDevice(db))
-	merchant.Put("/devices/:id", handlers.UpdateDevice(db))
-	merchant.Delete("/devices/:id", handlers.DeleteDevice(db))
+	merchant.GET("/devices", handlers.ListDevices(db))
+	merchant.POST("/devices", handlers.CreateDevice(db))
+	merchant.GET("/devices/:id", handlers.GetDevice(db))
+	merchant.PUT("/devices/:id", handlers.UpdateDevice(db))
+	merchant.DELETE("/devices/:id", handlers.DeleteDevice(db))
 
 	// Analytics
-	merchant.Get("/analytics/overview", handlers.GetAnalyticsOverview(db))
+	merchant.GET("/analytics/overview", handlers.GetAnalyticsOverview(db))
 
 	// Super Admin routes
-	superAdmin := auth.Group("/admin", middleware.SuperAdminMiddleware)
-	superAdmin.Get("/merchants", handlers.AdminListMerchants(db))
-	superAdmin.Post("/merchants", handlers.AdminCreateMerchant(db, cfg))
-	superAdmin.Put("/merchants/:id", handlers.AdminUpdateMerchant(db))
-	superAdmin.Delete("/merchants/:id", handlers.AdminDeleteMerchant(db))
-	superAdmin.Get("/sessions", handlers.AdminListAllSessions(db))
-	superAdmin.Get("/analytics", handlers.AdminGetPlatformAnalytics(db))
+	superAdmin := auth.Group("/admin")
+	superAdmin.Use(func(c *gin.Context) {
+		middleware.SuperAdminMiddleware(c)
+	})
+	superAdmin.GET("/merchants", handlers.AdminListMerchants(db))
+	superAdmin.POST("/merchants", handlers.AdminCreateMerchant(db))
+	superAdmin.PUT("/merchants/:id", handlers.AdminUpdateMerchant(db))
+	superAdmin.DELETE("/merchants/:id", handlers.AdminDeleteMerchant(db))
+	superAdmin.GET("/sessions", handlers.AdminListAllSessions(db))
+	superAdmin.GET("/analytics", handlers.AdminGetPlatformAnalytics(db))
 
 	// Upload (merchant-scoped)
-	merchant.Post("/upload", handlers.UploadFile(db, storage, cfg))
+	merchant.POST("/upload", handlers.UploadFile(db, storage))
 }

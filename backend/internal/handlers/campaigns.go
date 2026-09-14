@@ -5,36 +5,25 @@ import (
 	"strings"
 	"time"
 
-	"github.com/gofiber/fiber/v2"
-	"github.com/google/uuid"
+	"github.com/gin-gonic/gin"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"klikku/internal/utils"
 )
 
-// Request/Response types
 type CreateCampaignRequest struct {
-	Name            string                 `json:"name"`
+	Name            string                 `json:"name" binding:"required"`
 	Description     string                 `json:"description"`
-	StartDate       time.Time              `json:"start_date"`
-	EndDate         time.Time              `json:"end_date"`
+	StartDate       time.Time              `json:"start_date" binding:"required"`
+	EndDate         time.Time              `json:"end_date" binding:"required"`
 	Status          string                 `json:"status"`
 	PromotionConfig map[string]interface{} `json:"promotion_config"`
 }
 
-type UpdateCampaignRequest struct {
-	Name            string                 `json:"name,omitempty"`
-	Description     string                 `json:"description,omitempty"`
-	StartDate       *time.Time             `json:"start_date,omitempty"`
-	EndDate         *time.Time             `json:"end_date,omitempty"`
-	Status          string                 `json:"status,omitempty"`
-	PromotionConfig map[string]interface{} `json:"promotion_config,omitempty"`
-}
-
 type CreateTemplateRequest struct {
-	Name         string                 `json:"name"`
-	CampaignID   string                 `json:"campaign_id,omitempty"`
+	Name         string                 `json:"name" binding:"required"`
+	CampaignID   string                 `json:"campaign_id"`
 	LayoutConfig map[string]interface{} `json:"layout_config"`
-	OverlayURL   string                 `json:"overlay_url,omitempty"`
+	OverlayURL   string                 `json:"overlay_url"`
 	OutputWidth  int                    `json:"output_width"`
 	OutputHeight int                    `json:"output_height"`
 	PhotoCount   int                    `json:"photo_count"`
@@ -42,39 +31,20 @@ type CreateTemplateRequest struct {
 	Active       bool                   `json:"active"`
 }
 
-type UpdateTemplateRequest struct {
-	Name         string                 `json:"name,omitempty"`
-	CampaignID   string                 `json:"campaign_id,omitempty"`
-	LayoutConfig map[string]interface{} `json:"layout_config,omitempty"`
-	OverlayURL   string                 `json:"overlay_url,omitempty"`
-	OutputWidth  int                    `json:"output_width,omitempty"`
-	OutputHeight int                    `json:"output_height,omitempty"`
-	PhotoCount   int                    `json:"photo_count,omitempty"`
-	Price        float64                `json:"price,omitempty"`
-	Active       *bool                  `json:"active,omitempty"`
-}
-
-func getMerchantID(c *fiber.Ctx) string {
-	role := c.Locals("role").(string)
-	if role == "SUPER_ADMIN" {
-		return c.Query("merchant_id", "")
-	}
-	return c.Locals("merchant_id").(string)
-}
-
-// Campaigns
-func ListCampaigns(db *pgxpool.Pool) fiber.Handler {
-	return func(c *fiber.Ctx) error {
+func ListCampaigns(db *pgxpool.Pool) gin.HandlerFunc {
+	return func(c *gin.Context) {
 		merchantID := getMerchantID(c)
 		if merchantID == "" {
-			return utils.Error(c, fiber.StatusBadRequest, "merchant_id required")
+			utils.Error(c, 400, "merchant_id required")
+			return
 		}
 
 		rows, err := db.Query(context.Background(),
 			"SELECT id, merchant_id, name, description, start_date, end_date, status, promotion_config, created_at FROM campaigns WHERE merchant_id = $1 ORDER BY created_at DESC",
 			merchantID)
 		if err != nil {
-			return utils.Error(c, fiber.StatusInternalServerError, "failed to fetch campaigns")
+			utils.Error(c, 500, "failed to fetch campaigns")
+			return
 		}
 		defer rows.Close()
 
@@ -100,29 +70,22 @@ func ListCampaigns(db *pgxpool.Pool) fiber.Handler {
 			})
 		}
 
-		return utils.Success(c, campaigns)
+		utils.Success(c, campaigns)
 	}
 }
 
-func CreateCampaign(db *pgxpool.Pool) fiber.Handler {
-	return func(c *fiber.Ctx) error {
+func CreateCampaign(db *pgxpool.Pool) gin.HandlerFunc {
+	return func(c *gin.Context) {
 		merchantID := getMerchantID(c)
 		if merchantID == "" {
-			return utils.Error(c, fiber.StatusBadRequest, "merchant_id required")
+			utils.Error(c, 400, "merchant_id required")
+			return
 		}
 
 		var req CreateCampaignRequest
-		if err := c.BodyParser(&req); err != nil {
-			return utils.Error(c, fiber.StatusBadRequest, "invalid request body")
-		}
-
-		if req.Name == "" {
-			return utils.Error(c, fiber.StatusBadRequest, "campaign name required")
-		}
-
-		status := req.Status
-		if status == "" {
-			status = "draft"
+		if err := c.ShouldBindJSON(&req); err != nil {
+			utils.Error(c, 400, "invalid request body: "+err.Error())
+			return
 		}
 
 		promotionConfig := req.PromotionConfig
@@ -134,35 +97,33 @@ func CreateCampaign(db *pgxpool.Pool) fiber.Handler {
 		err := db.QueryRow(context.Background(),
 			`INSERT INTO campaigns (merchant_id, name, description, start_date, end_date, status, promotion_config) 
 			 VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id`,
-			merchantID, req.Name, req.Description, req.StartDate, req.EndDate, status, promotionConfig).Scan(&id)
+			merchantID, req.Name, req.Description, req.StartDate, req.EndDate, req.Status, promotionConfig).Scan(&id)
 		if err != nil {
-			return utils.Error(c, fiber.StatusInternalServerError, "failed to create campaign")
+			utils.Error(c, 500, "failed to create campaign")
+			return
 		}
 
-		return c.Status(fiber.StatusCreated).JSON(fiber.Map{"success": true, "id": id})
+		c.JSON(201, gin.H{"success": true, "id": id})
 	}
 }
 
-func GetCampaign(db *pgxpool.Pool) fiber.Handler {
-	return func(c *fiber.Ctx) error {
-		id := c.Params("id")
-		_, err := uuid.Parse(id)
-		if err != nil {
-			return utils.Error(c, fiber.StatusBadRequest, "invalid campaign ID")
-		}
+func GetCampaign(db *pgxpool.Pool) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		id := c.Param("id")
 
 		var mID, name, description, status string
 		var startDate, endDate, createdAt time.Time
 		var promotionConfig map[string]interface{}
 
-		err = db.QueryRow(context.Background(),
+		err := db.QueryRow(context.Background(),
 			"SELECT id, merchant_id, name, description, start_date, end_date, status, promotion_config, created_at FROM campaigns WHERE id = $1",
 			id).Scan(&id, &mID, &name, &description, &startDate, &endDate, &status, &promotionConfig, &createdAt)
 		if err != nil {
-			return utils.Error(c, fiber.StatusNotFound, "campaign not found")
+			utils.Error(c, 404, "campaign not found")
+			return
 		}
 
-		return utils.Success(c, map[string]interface{}{
+		utils.Success(c, map[string]interface{}{
 			"id":               id,
 			"merchant_id":      mID,
 			"name":             name,
@@ -176,17 +137,19 @@ func GetCampaign(db *pgxpool.Pool) fiber.Handler {
 	}
 }
 
-func UpdateCampaign(db *pgxpool.Pool) fiber.Handler {
-	return func(c *fiber.Ctx) error {
-		id := c.Params("id")
-		_, err := uuid.Parse(id)
-		if err != nil {
-			return utils.Error(c, fiber.StatusBadRequest, "invalid campaign ID")
-		}
+func UpdateCampaign(db *pgxpool.Pool) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		id := c.Param("id")
 
-		var req UpdateCampaignRequest
-		if err := c.BodyParser(&req); err != nil {
-			return utils.Error(c, fiber.StatusBadRequest, "invalid request body")
+		var req struct {
+			Name            string                 `json:"name"`
+			Description     string                 `json:"description"`
+			Status          string                 `json:"status"`
+			PromotionConfig map[string]interface{} `json:"promotion_config"`
+		}
+		if err := c.ShouldBindJSON(&req); err != nil {
+			utils.Error(c, 400, "invalid request body")
+			return
 		}
 
 		query := "UPDATE campaigns SET "
@@ -211,51 +174,51 @@ func UpdateCampaign(db *pgxpool.Pool) fiber.Handler {
 		}
 
 		if len(updates) == 0 {
-			return utils.Error(c, fiber.StatusBadRequest, "no fields to update")
+			utils.Error(c, 400, "no fields to update")
+			return
 		}
 
-		query += strings.Join(updates, ", ") + " WHERE id = $" + string(rune('0'+argIdx))
+		query += strings.Join(updates, ", ") + " WHERE id = $"+string(rune('0'+argIdx))
 		args = append(args, id)
 
-		_, err = db.Exec(context.Background(), query, args...)
+		_, err := db.Exec(context.Background(), query, args...)
 		if err != nil {
-			return utils.Error(c, fiber.StatusInternalServerError, "failed to update campaign")
+			utils.Error(c, 500, "failed to update campaign")
+			return
 		}
 
-		return utils.Message(c, "campaign updated")
+		utils.Message(c, "campaign updated")
 	}
 }
 
-func DeleteCampaign(db *pgxpool.Pool) fiber.Handler {
-	return func(c *fiber.Ctx) error {
-		id := c.Params("id")
-		_, err := uuid.Parse(id)
+func DeleteCampaign(db *pgxpool.Pool) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		id := c.Param("id")
+
+		_, err := db.Exec(context.Background(), "DELETE FROM campaigns WHERE id = $1", id)
 		if err != nil {
-			return utils.Error(c, fiber.StatusBadRequest, "invalid campaign ID")
+			utils.Error(c, 500, "failed to delete campaign")
+			return
 		}
 
-		_, err = db.Exec(context.Background(), "DELETE FROM campaigns WHERE id = $1", id)
-		if err != nil {
-			return utils.Error(c, fiber.StatusInternalServerError, "failed to delete campaign")
-		}
-
-		return utils.Message(c, "campaign deleted")
+		utils.Message(c, "campaign deleted")
 	}
 }
 
-// Templates
-func ListTemplates(db *pgxpool.Pool) fiber.Handler {
-	return func(c *fiber.Ctx) error {
+func ListTemplates(db *pgxpool.Pool) gin.HandlerFunc {
+	return func(c *gin.Context) {
 		merchantID := getMerchantID(c)
 		if merchantID == "" {
-			return utils.Error(c, fiber.StatusBadRequest, "merchant_id required")
+			utils.Error(c, 400, "merchant_id required")
+			return
 		}
 
 		rows, err := db.Query(context.Background(),
 			"SELECT id, merchant_id, campaign_id, name, preview_url, layout_config, overlay_url, output_width, output_height, photo_count, price, active, created_at FROM templates WHERE merchant_id = $1 ORDER BY created_at DESC",
 			merchantID)
 		if err != nil {
-			return utils.Error(c, fiber.StatusInternalServerError, "failed to fetch templates")
+			utils.Error(c, 500, "failed to fetch templates")
+			return
 		}
 		defer rows.Close()
 
@@ -288,24 +251,22 @@ func ListTemplates(db *pgxpool.Pool) fiber.Handler {
 			})
 		}
 
-		return utils.Success(c, templates)
+		utils.Success(c, templates)
 	}
 }
 
-func CreateTemplate(db *pgxpool.Pool) fiber.Handler {
-	return func(c *fiber.Ctx) error {
+func CreateTemplate(db *pgxpool.Pool) gin.HandlerFunc {
+	return func(c *gin.Context) {
 		merchantID := getMerchantID(c)
 		if merchantID == "" {
-			return utils.Error(c, fiber.StatusBadRequest, "merchant_id required")
+			utils.Error(c, 400, "merchant_id required")
+			return
 		}
 
 		var req CreateTemplateRequest
-		if err := c.BodyParser(&req); err != nil {
-			return utils.Error(c, fiber.StatusBadRequest, "invalid request body")
-		}
-
-		if req.Name == "" {
-			return utils.Error(c, fiber.StatusBadRequest, "template name required")
+		if err := c.ShouldBindJSON(&req); err != nil {
+			utils.Error(c, 400, "invalid request body: "+err.Error())
+			return
 		}
 
 		layoutConfig := req.LayoutConfig
@@ -332,20 +293,17 @@ func CreateTemplate(db *pgxpool.Pool) fiber.Handler {
 			 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING id`,
 			merchantID, req.CampaignID, req.Name, layoutConfig, req.OverlayURL, outputWidth, outputHeight, photoCount, req.Price, req.Active).Scan(&id)
 		if err != nil {
-			return utils.Error(c, fiber.StatusInternalServerError, "failed to create template")
+			utils.Error(c, 500, "failed to create template")
+			return
 		}
 
-		return c.Status(fiber.StatusCreated).JSON(fiber.Map{"success": true, "id": id})
+		c.JSON(201, gin.H{"success": true, "id": id})
 	}
 }
 
-func GetTemplate(db *pgxpool.Pool) fiber.Handler {
-	return func(c *fiber.Ctx) error {
-		id := c.Params("id")
-		_, err := uuid.Parse(id)
-		if err != nil {
-			return utils.Error(c, fiber.StatusBadRequest, "invalid template ID")
-		}
+func GetTemplate(db *pgxpool.Pool) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		id := c.Param("id")
 
 		var mID, campaignID, name, previewURL, overlayURL string
 		var layoutConfig map[string]interface{}
@@ -354,14 +312,15 @@ func GetTemplate(db *pgxpool.Pool) fiber.Handler {
 		var active bool
 		var createdAt time.Time
 
-		err = db.QueryRow(context.Background(),
+		err := db.QueryRow(context.Background(),
 			"SELECT id, merchant_id, campaign_id, name, preview_url, layout_config, overlay_url, output_width, output_height, photo_count, price, active, created_at FROM templates WHERE id = $1",
 			id).Scan(&id, &mID, &campaignID, &name, &previewURL, &layoutConfig, &overlayURL, &outputWidth, &outputHeight, &photoCount, &price, &active, &createdAt)
 		if err != nil {
-			return utils.Error(c, fiber.StatusNotFound, "template not found")
+			utils.Error(c, 404, "template not found")
+			return
 		}
 
-		return utils.Success(c, map[string]interface{}{
+		utils.Success(c, map[string]interface{}{
 			"id":             id,
 			"merchant_id":    mID,
 			"campaign_id":    campaignID,
@@ -379,17 +338,19 @@ func GetTemplate(db *pgxpool.Pool) fiber.Handler {
 	}
 }
 
-func UpdateTemplate(db *pgxpool.Pool) fiber.Handler {
-	return func(c *fiber.Ctx) error {
-		id := c.Params("id")
-		_, err := uuid.Parse(id)
-		if err != nil {
-			return utils.Error(c, fiber.StatusBadRequest, "invalid template ID")
-		}
+func UpdateTemplate(db *pgxpool.Pool) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		id := c.Param("id")
 
-		var req UpdateTemplateRequest
-		if err := c.BodyParser(&req); err != nil {
-			return utils.Error(c, fiber.StatusBadRequest, "invalid request body")
+		var req struct {
+			Name         string                 `json:"name"`
+			PhotoCount   int                    `json:"photo_count"`
+			Price        float64                `json:"price"`
+			LayoutConfig map[string]interface{} `json:"layout_config"`
+		}
+		if err := c.ShouldBindJSON(&req); err != nil {
+			utils.Error(c, 400, "invalid request body")
+			return
 		}
 
 		query := "UPDATE templates SET "
@@ -409,34 +370,33 @@ func UpdateTemplate(db *pgxpool.Pool) fiber.Handler {
 		}
 
 		if len(updates) == 0 {
-			return utils.Error(c, fiber.StatusBadRequest, "no fields to update")
+			utils.Error(c, 400, "no fields to update")
+			return
 		}
 
-		query += strings.Join(updates, ", ") + " WHERE id = $" + string(rune('0'+argIdx))
+		query += strings.Join(updates, ", ") + " WHERE id = $"+string(rune('0'+argIdx))
 		args = append(args, id)
 
-		_, err = db.Exec(context.Background(), query, args...)
+		_, err := db.Exec(context.Background(), query, args...)
 		if err != nil {
-			return utils.Error(c, fiber.StatusInternalServerError, "failed to update template")
+			utils.Error(c, 500, "failed to update template")
+			return
 		}
 
-		return utils.Message(c, "template updated")
+		utils.Message(c, "template updated")
 	}
 }
 
-func DeleteTemplate(db *pgxpool.Pool) fiber.Handler {
-	return func(c *fiber.Ctx) error {
-		id := c.Params("id")
-		_, err := uuid.Parse(id)
+func DeleteTemplate(db *pgxpool.Pool) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		id := c.Param("id")
+
+		_, err := db.Exec(context.Background(), "DELETE FROM templates WHERE id = $1", id)
 		if err != nil {
-			return utils.Error(c, fiber.StatusBadRequest, "invalid template ID")
+			utils.Error(c, 500, "failed to delete template")
+			return
 		}
 
-		_, err = db.Exec(context.Background(), "DELETE FROM templates WHERE id = $1", id)
-		if err != nil {
-			return utils.Error(c, fiber.StatusInternalServerError, "failed to delete template")
-		}
-
-		return utils.Message(c, "template deleted")
+		utils.Message(c, "template deleted")
 	}
 }

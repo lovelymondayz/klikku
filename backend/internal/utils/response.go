@@ -1,7 +1,7 @@
 package utils
 
 import (
-	"github.com/gofiber/fiber/v2"
+	"github.com/gin-gonic/gin"
 )
 
 type APIResponse struct {
@@ -12,18 +12,18 @@ type APIResponse struct {
 	Meta    interface{} `json:"meta,omitempty"`
 }
 
-func Success(c *fiber.Ctx, data interface{}) error {
-	return c.JSON(APIResponse{Success: true, Data: data})
+func Success(c *gin.Context, data interface{}) {
+	c.JSON(200, APIResponse{Success: true, Data: data})
 }
 
-func SuccessWithMeta(c *fiber.Ctx, data, meta interface{}) error {
-	return c.JSON(APIResponse{Success: true, Data: data, Meta: meta})
+func SuccessWithMeta(c *gin.Context, data, meta interface{}) {
+	c.JSON(200, APIResponse{Success: true, Data: data, Meta: meta})
 }
 
-func Error(c *fiber.Ctx, code int, message string) error {
-	return c.Status(code).JSON(APIResponse{Success: false, Error: message})
+func Error(c *gin.Context, code int, message string) {
+	c.JSON(code, APIResponse{Success: false, Error: message})
 }
 
-func Message(c *fiber.Ctx, message string) error {
-	return c.JSON(APIResponse{Success: true, Message: message})
+func Message(c *gin.Context, message string) {
+	c.JSON(200, APIResponse{Success: true, Message: message})
 }

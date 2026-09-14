@@ -2,20 +2,34 @@ package handlers
 
 import (
 	"context"
+	"fmt"
 	"io"
+	"log"
+	"os"
+	"path/filepath"
 	"time"
 
-	"github.com/gofiber/fiber/v2"
+	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
-	"klikku/internal/config"
 	"klikku/internal/utils"
 )
 
-// Photobooth session handlers
-func GetAttractScreen(db *pgxpool.Pool) fiber.Handler {
-	return func(c *fiber.Ctx) error {
-		deviceToken := c.Params("token")
+func getMerchantID(c *gin.Context) string {
+	role, _ := c.Get("role")
+	if role == "SUPER_ADMIN" {
+		return c.Query("merchant_id")
+	}
+	merchantID, _ := c.Get("merchant_id")
+	if merchantID == nil {
+		return ""
+	}
+	return merchantID.(string)
+}
+
+func GetAttractScreen(db *pgxpool.Pool) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		deviceToken := c.Param("token")
 
 		var merchantID, businessName, logoURL, primaryColor, welcomeMessage string
 		var deviceName, currentCampaignID string
@@ -27,10 +41,11 @@ func GetAttractScreen(db *pgxpool.Pool) fiber.Handler {
 			WHERE d.device_token = $1
 		`, deviceToken).Scan(&merchantID, &businessName, &logoURL, &primaryColor, &welcomeMessage, &deviceName, &currentCampaignID)
 		if err != nil {
-			return utils.Error(c, fiber.StatusNotFound, "device not found")
+			utils.Error(c, 404, "device not found")
+			return
 		}
 
-		return utils.Success(c, map[string]interface{}{
+		utils.Success(c, map[string]interface{}{
 			"merchant_id":     merchantID,
 			"business_name":   businessName,
 			"logo_url":        logoURL,
@@ -42,16 +57,17 @@ func GetAttractScreen(db *pgxpool.Pool) fiber.Handler {
 	}
 }
 
-func CreateSession(db *pgxpool.Pool) fiber.Handler {
-	return func(c *fiber.Ctx) error {
-		deviceToken := c.Params("token")
+func CreateSession(db *pgxpool.Pool) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		deviceToken := c.Param("token")
 
 		var merchantID, deviceID string
 		err := db.QueryRow(context.Background(),
 			"SELECT id, merchant_id FROM devices WHERE device_token = $1",
 			deviceToken).Scan(&deviceID, &merchantID)
 		if err != nil {
-			return utils.Error(c, fiber.StatusNotFound, "device not found")
+			utils.Error(c, 404, "device not found")
+			return
 		}
 
 		var campaignID string
@@ -59,7 +75,8 @@ func CreateSession(db *pgxpool.Pool) fiber.Handler {
 			"SELECT current_campaign_id FROM devices WHERE id = $1",
 			deviceID).Scan(&campaignID)
 		if err != nil {
-			return utils.Error(c, fiber.StatusInternalServerError, "failed to get device campaign")
+			utils.Error(c, 500, "failed to get device campaign")
+			return
 		}
 
 		sessionID := uuid.New().String()
@@ -67,37 +84,28 @@ func CreateSession(db *pgxpool.Pool) fiber.Handler {
 			"INSERT INTO photobooth_sessions (id, merchant_id, device_id, campaign_id, status, payment_status) VALUES ($1, $2, $3, $4, 'STARTED', 'PENDING')",
 			sessionID, merchantID, deviceID, campaignID)
 		if err != nil {
-			return utils.Error(c, fiber.StatusInternalServerError, "failed to create session")
+			utils.Error(c, 500, "failed to create session")
+			return
 		}
 
-		return c.Status(fiber.StatusCreated).JSON(fiber.Map{"success": true, "session_id": sessionID})
+		c.JSON(201, gin.H{"success": true, "session_id": sessionID})
 	}
 }
 
-func CapturePhoto(db *pgxpool.Pool, storage *utils.Storage, cfg *config.Config) fiber.Handler {
-	return func(c *fiber.Ctx) error {
-		sessionID := c.Params("id")
-		_, err := uuid.Parse(sessionID)
-		if err != nil {
-			return utils.Error(c, fiber.StatusBadRequest, "invalid session ID")
-		}
+func CapturePhoto(db *pgxpool.Pool, storage *utils.Storage) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		sessionID := c.Param("id")
 
 		form, err := c.MultipartForm()
 		if err != nil {
-			return utils.Error(c, fiber.StatusBadRequest, "invalid form data")
+			utils.Error(c, 400, "invalid form data")
+			return
 		}
 
 		files := form.File["photos"]
 		if len(files) == 0 {
-			return utils.Error(c, fiber.StatusBadRequest, "no photos uploaded")
-		}
-
-		var merchantID, templateID string
-		err = db.QueryRow(context.Background(),
-			"SELECT merchant_id, template_id FROM photobooth_sessions WHERE id = $1",
-			sessionID).Scan(&merchantID, &templateID)
-		if err != nil {
-			return utils.Error(c, fiber.StatusNotFound, "session not found")
+			utils.Error(c, 400, "no photos uploaded")
+			return
 		}
 
 		var photoURLs []string
@@ -132,7 +140,7 @@ func CapturePhoto(db *pgxpool.Pool, storage *utils.Storage, cfg *config.Config) 
 			"UPDATE photobooth_sessions SET status = 'CAPTURING' WHERE id = $1",
 			sessionID)
 
-		return utils.Success(c, fiber.Map{
+		utils.Success(c, gin.H{
 			"session_id": sessionID,
 			"photos":     photoURLs,
 			"count":      len(photoURLs),
@@ -140,33 +148,50 @@ func CapturePhoto(db *pgxpool.Pool, storage *utils.Storage, cfg *config.Config) 
 	}
 }
 
-func GetSession(db *pgxpool.Pool) fiber.Handler {
-	return func(c *fiber.Ctx) error {
-		return utils.Success(c, fiber.Map{"status": "ok"})
+func GetSession(db *pgxpool.Pool) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		sessionID := c.Param("id")
+
+		var finalImageURL, status string
+		err := db.QueryRow(context.Background(),
+			"SELECT final_image_url, status FROM photobooth_sessions WHERE id = $1",
+			sessionID).Scan(&finalImageURL, &status)
+		if err != nil {
+			utils.Error(c, 404, "session not found")
+			return
+		}
+
+		utils.Success(c, gin.H{
+			"session_id":      sessionID,
+			"status":          status,
+			"final_image_url": finalImageURL,
+		})
 	}
 }
 
-func DownloadSession(db *pgxpool.Pool) fiber.Handler {
-	return func(c *fiber.Ctx) error {
-		sessionID := c.Params("id")
+func DownloadSession(db *pgxpool.Pool) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		sessionID := c.Param("id")
 
 		var finalImageURL string
 		err := db.QueryRow(context.Background(),
 			"SELECT final_image_url FROM photobooth_sessions WHERE id = $1",
 			sessionID).Scan(&finalImageURL)
 		if err != nil {
-			return utils.Error(c, fiber.StatusNotFound, "session not found")
+			utils.Error(c, 404, "session not found")
+			return
 		}
 
-		return utils.Success(c, fiber.Map{"download_url": finalImageURL})
+		utils.Success(c, gin.H{"download_url": finalImageURL})
 	}
 }
 
-func ListSessions(db *pgxpool.Pool) fiber.Handler {
-	return func(c *fiber.Ctx) error {
+func ListSessions(db *pgxpool.Pool) gin.HandlerFunc {
+	return func(c *gin.Context) {
 		merchantID := getMerchantID(c)
 		if merchantID == "" {
-			return utils.Error(c, fiber.StatusBadRequest, "merchant_id required")
+			utils.Error(c, 400, "merchant_id required")
+			return
 		}
 
 		rows, err := db.Query(context.Background(),
@@ -174,7 +199,8 @@ func ListSessions(db *pgxpool.Pool) fiber.Handler {
 			 FROM photobooth_sessions WHERE merchant_id = $1 ORDER BY created_at DESC LIMIT 50`,
 			merchantID)
 		if err != nil {
-			return utils.Error(c, fiber.StatusInternalServerError, "failed to fetch sessions")
+			utils.Error(c, 500, "failed to fetch sessions")
+			return
 		}
 		defer rows.Close()
 
@@ -203,29 +229,26 @@ func ListSessions(db *pgxpool.Pool) fiber.Handler {
 			})
 		}
 
-		return utils.Success(c, sessions)
+		utils.Success(c, sessions)
 	}
 }
 
-func GetSessionDetail(db *pgxpool.Pool) fiber.Handler {
-	return func(c *fiber.Ctx) error {
-		id := c.Params("id")
-		_, err := uuid.Parse(id)
-		if err != nil {
-			return utils.Error(c, fiber.StatusBadRequest, "invalid session ID")
-		}
+func GetSessionDetail(db *pgxpool.Pool) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		id := c.Param("id")
 
 		var mID, deviceID, campaignID, templateID, status, paymentStatus, email string
 		var finalImageURL string
 		var createdAt time.Time
 		var completedAt *time.Time
 
-		err = db.QueryRow(context.Background(),
+		err := db.QueryRow(context.Background(),
 			`SELECT id, merchant_id, device_id, campaign_id, template_id, status, payment_status, email, final_image_url, created_at, completed_at 
 			 FROM photobooth_sessions WHERE id = $1`, id).Scan(
 			&id, &mID, &deviceID, &campaignID, &templateID, &status, &paymentStatus, &email, &finalImageURL, &createdAt, &completedAt)
 		if err != nil {
-			return utils.Error(c, fiber.StatusNotFound, "session not found")
+			utils.Error(c, 404, "session not found")
+			return
 		}
 
 		session := map[string]interface{}{
@@ -246,7 +269,8 @@ func GetSessionDetail(db *pgxpool.Pool) fiber.Handler {
 			"SELECT id, original_url, processed_url, final_url, position FROM photos WHERE session_id = $1 ORDER BY position",
 			id)
 		if err != nil {
-			return utils.Error(c, fiber.StatusInternalServerError, "failed to fetch photos")
+			utils.Error(c, 500, "failed to fetch photos")
+			return
 		}
 		defer rows.Close()
 
@@ -264,36 +288,33 @@ func GetSessionDetail(db *pgxpool.Pool) fiber.Handler {
 			})
 		}
 
-		return utils.Success(c, map[string]interface{}{
+		utils.Success(c, map[string]interface{}{
 			"session": session,
 			"photos":  photos,
 		})
 	}
 }
 
-func DeleteSession(db *pgxpool.Pool) fiber.Handler {
-	return func(c *fiber.Ctx) error {
-		id := c.Params("id")
-		_, err := uuid.Parse(id)
+func DeleteSession(db *pgxpool.Pool) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		id := c.Param("id")
+
+		_, err := db.Exec(context.Background(), "DELETE FROM photobooth_sessions WHERE id = $1", id)
 		if err != nil {
-			return utils.Error(c, fiber.StatusBadRequest, "invalid session ID")
+			utils.Error(c, 500, "failed to delete session")
+			return
 		}
 
-		_, err = db.Exec(context.Background(), "DELETE FROM photobooth_sessions WHERE id = $1", id)
-		if err != nil {
-			return utils.Error(c, fiber.StatusInternalServerError, "failed to delete session")
-		}
-
-		return utils.Message(c, "session deleted")
+		utils.Message(c, "session deleted")
 	}
 }
 
-// Branding
-func GetBranding(db *pgxpool.Pool) fiber.Handler {
-	return func(c *fiber.Ctx) error {
+func GetBranding(db *pgxpool.Pool) gin.HandlerFunc {
+	return func(c *gin.Context) {
 		merchantID := getMerchantID(c)
 		if merchantID == "" {
-			return utils.Error(c, fiber.StatusBadRequest, "merchant_id required")
+			utils.Error(c, 400, "merchant_id required")
+			return
 		}
 
 		var businessName, logoURL, primaryColor, secondaryColor, font, welcomeMessage string
@@ -304,10 +325,11 @@ func GetBranding(db *pgxpool.Pool) fiber.Handler {
 			"SELECT business_name, logo_url, primary_color, secondary_color, font, welcome_message, idle_background_url, email_design, social_links FROM merchants WHERE id = $1",
 			merchantID).Scan(&businessName, &logoURL, &primaryColor, &secondaryColor, &font, &welcomeMessage, &idleBackgroundURL, &emailDesign, &socialLinks)
 		if err != nil {
-			return utils.Error(c, fiber.StatusNotFound, "merchant not found")
+			utils.Error(c, 404, "merchant not found")
+			return
 		}
 
-		return utils.Success(c, map[string]interface{}{
+		utils.Success(c, map[string]interface{}{
 			"business_name":      businessName,
 			"logo_url":           logoURL,
 			"primary_color":      primaryColor,
@@ -321,26 +343,28 @@ func GetBranding(db *pgxpool.Pool) fiber.Handler {
 	}
 }
 
-func UpdateBranding(db *pgxpool.Pool, storage *utils.Storage, cfg *config.Config) fiber.Handler {
-	return func(c *fiber.Ctx) error {
+func UpdateBranding(db *pgxpool.Pool, storage *utils.Storage) gin.HandlerFunc {
+	return func(c *gin.Context) {
 		merchantID := getMerchantID(c)
 		if merchantID == "" {
-			return utils.Error(c, fiber.StatusBadRequest, "merchant_id required")
+			utils.Error(c, 400, "merchant_id required")
+			return
 		}
 
 		var req struct {
-			BusinessName     string                 `json:"business_name"`
-			LogoURL          string                 `json:"logo_url"`
-			PrimaryColor     string                 `json:"primary_color"`
-			SecondaryColor   string                 `json:"secondary_color"`
-			Font             string                 `json:"font"`
-			WelcomeMessage   string                 `json:"welcome_message"`
-			IdleBackgroundURL string                `json:"idle_background_url"`
-			EmailDesign      map[string]interface{} `json:"email_design"`
-			SocialLinks      map[string]interface{} `json:"social_links"`
+			BusinessName      string                 `json:"business_name"`
+			LogoURL           string                 `json:"logo_url"`
+			PrimaryColor      string                 `json:"primary_color"`
+			SecondaryColor    string                 `json:"secondary_color"`
+			Font              string                 `json:"font"`
+			WelcomeMessage    string                 `json:"welcome_message"`
+			IdleBackgroundURL string                 `json:"idle_background_url"`
+			EmailDesign       map[string]interface{} `json:"email_design"`
+			SocialLinks       map[string]interface{} `json:"social_links"`
 		}
-		if err := c.BodyParser(&req); err != nil {
-			return utils.Error(c, fiber.StatusBadRequest, "invalid request body")
+		if err := c.ShouldBindJSON(&req); err != nil {
+			utils.Error(c, 400, "invalid request body")
+			return
 		}
 
 		_, err := db.Exec(context.Background(),
@@ -357,26 +381,28 @@ func UpdateBranding(db *pgxpool.Pool, storage *utils.Storage, cfg *config.Config
 			 WHERE id = $10`,
 			req.BusinessName, req.LogoURL, req.PrimaryColor, req.SecondaryColor, req.Font, req.WelcomeMessage, req.IdleBackgroundURL, req.EmailDesign, req.SocialLinks, merchantID)
 		if err != nil {
-			return utils.Error(c, fiber.StatusInternalServerError, "failed to update branding")
+			utils.Error(c, 500, "failed to update branding")
+			return
 		}
 
-		return utils.Message(c, "branding updated")
+		utils.Message(c, "branding updated")
 	}
 }
 
-// Devices
-func ListDevices(db *pgxpool.Pool) fiber.Handler {
-	return func(c *fiber.Ctx) error {
+func ListDevices(db *pgxpool.Pool) gin.HandlerFunc {
+	return func(c *gin.Context) {
 		merchantID := getMerchantID(c)
 		if merchantID == "" {
-			return utils.Error(c, fiber.StatusBadRequest, "merchant_id required")
+			utils.Error(c, 400, "merchant_id required")
+			return
 		}
 
 		rows, err := db.Query(context.Background(),
 			"SELECT id, merchant_id, name, device_token, status, current_campaign_id, printer_config, last_seen_at, created_at FROM devices WHERE merchant_id = $1 ORDER BY created_at DESC",
 			merchantID)
 		if err != nil {
-			return utils.Error(c, fiber.StatusInternalServerError, "failed to fetch devices")
+			utils.Error(c, 500, "failed to fetch devices")
+			return
 		}
 		defer rows.Close()
 
@@ -402,28 +428,26 @@ func ListDevices(db *pgxpool.Pool) fiber.Handler {
 			})
 		}
 
-		return utils.Success(c, devices)
+		utils.Success(c, devices)
 	}
 }
 
-func CreateDevice(db *pgxpool.Pool) fiber.Handler {
-	return func(c *fiber.Ctx) error {
+func CreateDevice(db *pgxpool.Pool) gin.HandlerFunc {
+	return func(c *gin.Context) {
 		merchantID := getMerchantID(c)
 		if merchantID == "" {
-			return utils.Error(c, fiber.StatusBadRequest, "merchant_id required")
+			utils.Error(c, 400, "merchant_id required")
+			return
 		}
 
 		var req struct {
-			Name        string                 `json:"name"`
-			DeviceToken string                 `json:"device_token"`
+			Name          string                 `json:"name" binding:"required"`
+			DeviceToken   string                 `json:"device_token"`
 			PrinterConfig map[string]interface{} `json:"printer_config"`
 		}
-		if err := c.BodyParser(&req); err != nil {
-			return utils.Error(c, fiber.StatusBadRequest, "invalid request body")
-		}
-
-		if req.Name == "" {
-			return utils.Error(c, fiber.StatusBadRequest, "device name required")
+		if err := c.ShouldBindJSON(&req); err != nil {
+			utils.Error(c, 400, "invalid request body")
+			return
 		}
 
 		deviceToken := req.DeviceToken
@@ -441,33 +465,31 @@ func CreateDevice(db *pgxpool.Pool) fiber.Handler {
 			"INSERT INTO devices (merchant_id, name, device_token, printer_config) VALUES ($1, $2, $3, $4) RETURNING id",
 			merchantID, req.Name, deviceToken, printerConfig).Scan(&id)
 		if err != nil {
-			return utils.Error(c, fiber.StatusInternalServerError, "failed to create device")
+			utils.Error(c, 500, "failed to create device")
+			return
 		}
 
-		return c.Status(fiber.StatusCreated).JSON(fiber.Map{"success": true, "id": id, "device_token": deviceToken})
+		c.JSON(201, gin.H{"success": true, "id": id, "device_token": deviceToken})
 	}
 }
 
-func GetDevice(db *pgxpool.Pool) fiber.Handler {
-	return func(c *fiber.Ctx) error {
-		id := c.Params("id")
-		_, err := uuid.Parse(id)
-		if err != nil {
-			return utils.Error(c, fiber.StatusBadRequest, "invalid device ID")
-		}
+func GetDevice(db *pgxpool.Pool) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		id := c.Param("id")
 
 		var mID, name, deviceToken, status, currentCampaignID string
 		var printerConfig map[string]interface{}
 		var lastSeenAt, createdAt time.Time
 
-		err = db.QueryRow(context.Background(),
+		err := db.QueryRow(context.Background(),
 			"SELECT id, merchant_id, name, device_token, status, current_campaign_id, printer_config, last_seen_at, created_at FROM devices WHERE id = $1",
 			id).Scan(&id, &mID, &name, &deviceToken, &status, &currentCampaignID, &printerConfig, &lastSeenAt, &createdAt)
 		if err != nil {
-			return utils.Error(c, fiber.StatusNotFound, "device not found")
+			utils.Error(c, 404, "device not found")
+			return
 		}
 
-		return utils.Success(c, map[string]interface{}{
+		utils.Success(c, map[string]interface{}{
 			"id":                  id,
 			"merchant_id":         mID,
 			"name":                name,
@@ -481,13 +503,9 @@ func GetDevice(db *pgxpool.Pool) fiber.Handler {
 	}
 }
 
-func UpdateDevice(db *pgxpool.Pool) fiber.Handler {
-	return func(c *fiber.Ctx) error {
-		id := c.Params("id")
-		_, err := uuid.Parse(id)
-		if err != nil {
-			return utils.Error(c, fiber.StatusBadRequest, "invalid device ID")
-		}
+func UpdateDevice(db *pgxpool.Pool) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		id := c.Param("id")
 
 		var req struct {
 			Name              string                 `json:"name"`
@@ -495,11 +513,12 @@ func UpdateDevice(db *pgxpool.Pool) fiber.Handler {
 			CurrentCampaignID string                 `json:"current_campaign_id"`
 			PrinterConfig     map[string]interface{} `json:"printer_config"`
 		}
-		if err := c.BodyParser(&req); err != nil {
-			return utils.Error(c, fiber.StatusBadRequest, "invalid request body")
+		if err := c.ShouldBindJSON(&req); err != nil {
+			utils.Error(c, 400, "invalid request body")
+			return
 		}
 
-		_, err = db.Exec(context.Background(),
+		_, err := db.Exec(context.Background(),
 			`UPDATE devices SET 
 				name = COALESCE(NULLIF($1, ''), name),
 				status = COALESCE(NULLIF($2, ''), status),
@@ -508,36 +527,34 @@ func UpdateDevice(db *pgxpool.Pool) fiber.Handler {
 			 WHERE id = $5`,
 			req.Name, req.Status, req.CurrentCampaignID, req.PrinterConfig, id)
 		if err != nil {
-			return utils.Error(c, fiber.StatusInternalServerError, "failed to update device")
+			utils.Error(c, 500, "failed to update device")
+			return
 		}
 
-		return utils.Message(c, "device updated")
+		utils.Message(c, "device updated")
 	}
 }
 
-func DeleteDevice(db *pgxpool.Pool) fiber.Handler {
-	return func(c *fiber.Ctx) error {
-		id := c.Params("id")
-		_, err := uuid.Parse(id)
+func DeleteDevice(db *pgxpool.Pool) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		id := c.Param("id")
+
+		_, err := db.Exec(context.Background(), "DELETE FROM devices WHERE id = $1", id)
 		if err != nil {
-			return utils.Error(c, fiber.StatusBadRequest, "invalid device ID")
+			utils.Error(c, 500, "failed to delete device")
+			return
 		}
 
-		_, err = db.Exec(context.Background(), "DELETE FROM devices WHERE id = $1", id)
-		if err != nil {
-			return utils.Error(c, fiber.StatusInternalServerError, "failed to delete device")
-		}
-
-		return utils.Message(c, "device deleted")
+		utils.Message(c, "device deleted")
 	}
 }
 
-// Analytics
-func GetAnalyticsOverview(db *pgxpool.Pool) fiber.Handler {
-	return func(c *fiber.Ctx) error {
+func GetAnalyticsOverview(db *pgxpool.Pool) gin.HandlerFunc {
+	return func(c *gin.Context) {
 		merchantID := getMerchantID(c)
 		if merchantID == "" {
-			return utils.Error(c, fiber.StatusBadRequest, "merchant_id required")
+			utils.Error(c, 400, "merchant_id required")
+			return
 		}
 
 		var sessions, photos, prints, emails int
@@ -559,7 +576,7 @@ func GetAnalyticsOverview(db *pgxpool.Pool) fiber.Handler {
 			"SELECT COALESCE(SUM(amount), 0) FROM payments WHERE session_id IN (SELECT id FROM photobooth_sessions WHERE merchant_id = $1)",
 			merchantID).Scan(&revenue)
 
-		return utils.Success(c, map[string]interface{}{
+		utils.Success(c, map[string]interface{}{
 			"sessions": sessions,
 			"photos":   photos,
 			"prints":   prints,
@@ -569,37 +586,181 @@ func GetAnalyticsOverview(db *pgxpool.Pool) fiber.Handler {
 	}
 }
 
-// Upload file to local storage
-func UploadFile(db *pgxpool.Pool, storage *utils.Storage, cfg *config.Config) fiber.Handler {
-	return func(c *fiber.Ctx) error {
+func UploadFile(db *pgxpool.Pool, storage *utils.Storage) gin.HandlerFunc {
+	return func(c *gin.Context) {
 		file, err := c.FormFile("file")
 		if err != nil {
-			return utils.Error(c, fiber.StatusBadRequest, "no file uploaded")
+			utils.Error(c, 400, "no file uploaded")
+			return
 		}
 
 		f, err := file.Open()
 		if err != nil {
-			return utils.Error(c, fiber.StatusInternalServerError, "failed to open file")
+			utils.Error(c, 500, "failed to open file")
+			return
 		}
 		defer f.Close()
 
 		data, err := io.ReadAll(f)
 		if err != nil {
-			return utils.Error(c, fiber.StatusInternalServerError, "failed to read file")
+			utils.Error(c, 500, "failed to read file")
+			return
 		}
 
-		bucket := c.FormValue("bucket", "assets")
+		bucket := c.PostForm("bucket")
+		if bucket == "" {
+			bucket = "assets"
+		}
 		objectName := uuid.New().String() + "_" + file.Filename
 
 		err = storage.Upload(bucket, objectName, data, file.Header.Get("Content-Type"))
 		if err != nil {
-			return utils.Error(c, fiber.StatusInternalServerError, "failed to upload file")
+			utils.Error(c, 500, "failed to upload file")
+			return
 		}
 
-		return utils.Success(c, fiber.Map{
+		utils.Success(c, gin.H{
 			"url":      objectName,
 			"bucket":   bucket,
 			"filename": file.Filename,
 		})
+	}
+}
+
+func FinalizeSession(db *pgxpool.Pool, storage *utils.Storage) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		sessionID := c.Param("id")
+
+		var merchantID, templateID string
+		err := db.QueryRow(context.Background(),
+			"SELECT merchant_id, template_id FROM photobooth_sessions WHERE id = $1",
+			sessionID).Scan(&merchantID, &templateID)
+		if err != nil {
+			utils.Error(c, 404, "session not found")
+			return
+		}
+
+		rows, err := db.Query(context.Background(),
+			"SELECT original_url FROM photos WHERE session_id = $1 ORDER BY position",
+			sessionID)
+		if err != nil {
+			utils.Error(c, 500, "failed to fetch photos")
+			return
+		}
+		defer rows.Close()
+
+		var photoURLs []string
+		for rows.Next() {
+			var url string
+			rows.Scan(&url)
+			photoURLs = append(photoURLs, url)
+		}
+
+		if len(photoURLs) == 0 {
+			utils.Error(c, 400, "no photos found for session")
+			return
+		}
+
+		var photoPaths []string
+		tempDir := filepath.Join(os.TempDir(), "klikku", sessionID)
+		os.MkdirAll(tempDir, 0755)
+
+		for i, url := range photoURLs {
+			data, err := storage.Download("originals", url)
+			if err != nil {
+				log.Printf("Failed to download photo %s: %v", url, err)
+				continue
+			}
+
+			ext := filepath.Ext(url)
+			if ext == "" {
+				ext = ".jpg"
+			}
+			tempPath := filepath.Join(tempDir, fmt.Sprintf("photo_%d%s", i, ext))
+			if err := os.WriteFile(tempPath, data, 0644); err == nil {
+				photoPaths = append(photoPaths, tempPath)
+			}
+		}
+
+		if len(photoPaths) == 0 {
+			utils.Error(c, 500, "failed to download photos")
+			return
+		}
+
+		var layoutConfig map[string]interface{}
+		err = db.QueryRow(context.Background(),
+			"SELECT layout_config FROM templates WHERE id = $1", templateID).Scan(&layoutConfig)
+		if err != nil || layoutConfig == nil {
+			layoutConfig = map[string]interface{}{
+				"output_width":  1200,
+				"output_height": 1800,
+			}
+		}
+
+		finalName := sessionID + "_final.jpg"
+		finalPath := filepath.Join(tempDir, "final.jpg")
+
+		if err := utils.ComposePhotos(photoPaths, layoutConfig, finalPath); err != nil {
+			log.Printf("Compose failed: %v", err)
+			finalPath = photoPaths[0]
+		}
+
+		finalData, err := os.ReadFile(finalPath)
+		if err != nil {
+			utils.Error(c, 500, "failed to read final image")
+			return
+		}
+
+		err = storage.Upload("finals", finalName, finalData, "image/jpeg")
+		if err != nil {
+			utils.Error(c, 500, "failed to save final image")
+			return
+		}
+
+		_, err = db.Exec(context.Background(),
+			"UPDATE photobooth_sessions SET status = 'COMPLETED', final_image_url = $1, completed_at = NOW() WHERE id = $2",
+			finalName, sessionID)
+		if err != nil {
+			utils.Error(c, 500, "failed to update session")
+			return
+		}
+
+		os.RemoveAll(tempDir)
+
+		utils.Success(c, gin.H{
+			"session_id":      sessionID,
+			"final_image_url": finalName,
+			"download_url":    "/api/download/" + sessionID,
+		})
+	}
+}
+
+func DownloadFinal(db *pgxpool.Pool, storage *utils.Storage) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		sessionID := c.Param("id")
+
+		var finalImageURL string
+		err := db.QueryRow(context.Background(),
+			"SELECT final_image_url FROM photobooth_sessions WHERE id = $1",
+			sessionID).Scan(&finalImageURL)
+		if err != nil {
+			utils.Error(c, 404, "session not found")
+			return
+		}
+
+		if finalImageURL == "" {
+			utils.Error(c, 404, "final image not ready")
+			return
+		}
+
+		data, err := storage.Download("finals", finalImageURL)
+		if err != nil {
+			utils.Error(c, 404, "image not found")
+			return
+		}
+
+		c.Header("Content-Type", "image/jpeg")
+		c.Header("Content-Disposition", "inline; filename=\"photobooth.jpg\"")
+		c.Data(200, "image/jpeg", data)
 	}
 }

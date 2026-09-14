@@ -1,15 +1,14 @@
 package utils
 
 import (
-	"github.com/gofiber/fiber/v2"
+	"github.com/gin-gonic/gin"
 	"klikku/internal/config"
 )
 
-// Store config in fiber locals during app setup
-func SetConfig(c *fiber.Ctx, cfg *config.Config) {
-	c.Locals("config", cfg)
+func SetConfig(c *gin.Context, cfg *config.Config) {
+	c.Set("config", cfg)
 }
 
-func GetConfig(c *fiber.Ctx) *config.Config {
-	return c.Locals("config").(*config.Config)
+func GetConfig(c *gin.Context) *config.Config {
+	return c.MustGet("config").(*config.Config)
 }

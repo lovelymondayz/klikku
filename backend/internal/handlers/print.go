@@ -4,28 +4,105 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"os"
+	"path/filepath"
 	"time"
 
-	"github.com/gofiber/fiber/v2"
+	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"klikku/internal/utils"
 )
 
-// CreatePrintJob creates a new print job for a session
-func CreatePrintJob(db *pgxpool.Pool, storage *utils.Storage) fiber.Handler {
-	return func(c *fiber.Ctx) error {
-		sessionID := c.Params("id")
-		_, parseErr := uuid.Parse(sessionID)
-		if parseErr != nil {
-			return utils.Error(c, fiber.StatusBadRequest, "invalid session ID")
+func SendEmailDelivery(db *pgxpool.Pool, storage *utils.Storage) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		sessionID := c.Param("id")
+
+		var finalImageURL, customerEmail, merchantName, merchantLogo string
+		err := db.QueryRow(context.Background(), `
+			SELECT s.final_image_url, s.email, m.business_name, m.logo_url
+			FROM photobooth_sessions s
+			JOIN merchants m ON m.id = s.merchant_id
+			WHERE s.id = $1
+		`, sessionID).Scan(&finalImageURL, &customerEmail, &merchantName, &merchantLogo)
+		if err != nil {
+			utils.Error(c, 404, "session not found")
+			return
 		}
+
+		if finalImageURL == "" {
+			utils.Error(c, 400, "final image not ready")
+			return
+		}
+
+		if customerEmail == "" {
+			var req struct {
+				Email string `json:"email"`
+			}
+			if err := c.ShouldBindJSON(&req); err == nil && req.Email != "" {
+				customerEmail = req.Email
+				db.Exec(context.Background(), "UPDATE photobooth_sessions SET email = $1 WHERE id = $2", customerEmail, sessionID)
+			} else {
+				utils.Error(c, 400, "customer email required")
+				return
+			}
+		}
+
+		finalData, err := storage.Download("finals", finalImageURL)
+		if err != nil {
+			utils.Error(c, 500, "failed to load final image")
+			return
+		}
+
+		tempDir := filepath.Join(os.TempDir(), "klikku", "email")
+		os.MkdirAll(tempDir, 0755)
+		tempPath := filepath.Join(tempDir, sessionID+"_final.jpg")
+		if err := os.WriteFile(tempPath, finalData, 0644); err != nil {
+			utils.Error(c, 500, "failed to save temp image")
+			return
+		}
+		defer os.Remove(tempPath)
+
+		downloadURL := fmt.Sprintf("%s/api/download/%s", "https://klikku.arjism.com", sessionID)
+		htmlContent := utils.GenerateBrandedEmail(merchantName, merchantLogo, downloadURL, downloadURL)
+
+		brevo := utils.NewBrevoEmail("", "", "")
+		err = brevo.SendEmail(customerEmail, "", "Your photobooth memory is ready!", htmlContent)
+		if err != nil {
+			log.Printf("Email send failed: %v", err)
+			db.Exec(context.Background(),
+				"INSERT INTO email_deliveries (session_id, email, status) VALUES ($1, $2, 'FAILED')",
+				sessionID, customerEmail)
+			utils.Error(c, 500, "failed to send email")
+			return
+		}
+
+		_, err = db.Exec(context.Background(),
+			"INSERT INTO email_deliveries (session_id, email, status, sent_at) VALUES ($1, $2, 'SENT', NOW())",
+			sessionID, customerEmail)
+		if err != nil {
+			log.Printf("Failed to record email delivery: %v", err)
+		}
+
+		utils.Message(c, "email sent successfully")
+	}
+}
+
+func ResendEmail(db *pgxpool.Pool, storage *utils.Storage) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		SendEmailDelivery(db, storage)(c)
+	}
+}
+
+func CreatePrintJob(db *pgxpool.Pool, storage *utils.Storage) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		sessionID := c.Param("id")
 
 		var req struct {
 			PrintType string `json:"print_type"`
 			Copies    int    `json:"copies"`
 		}
-		_ = c.BodyParser(&req)
+		_ = c.ShouldBindJSON(&req)
 
 		printType := req.PrintType
 		if printType == "" {
@@ -37,21 +114,23 @@ func CreatePrintJob(db *pgxpool.Pool, storage *utils.Storage) fiber.Handler {
 		}
 
 		var deviceID string
-		queryErr := db.QueryRow(context.Background(),
+		err := db.QueryRow(context.Background(),
 			"SELECT device_id FROM photobooth_sessions WHERE id = $1", sessionID).Scan(&deviceID)
-		if queryErr != nil {
-			return utils.Error(c, fiber.StatusNotFound, "session not found")
+		if err != nil {
+			utils.Error(c, 404, "session not found")
+			return
 		}
 
 		printJobID := uuid.New().String()
-		_, execErr := db.Exec(context.Background(),
+		_, err = db.Exec(context.Background(),
 			"INSERT INTO print_jobs (id, session_id, device_id, print_type, copies, status) VALUES ($1, $2, $3, $4, $5, 'QUEUED')",
 			printJobID, sessionID, deviceID, printType, copies)
-		if execErr != nil {
-			return utils.Error(c, fiber.StatusInternalServerError, "failed to create print job")
+		if err != nil {
+			utils.Error(c, 500, "failed to create print job")
+			return
 		}
 
-		return c.Status(fiber.StatusCreated).JSON(fiber.Map{
+		c.JSON(201, gin.H{
 			"id":         printJobID,
 			"session_id": sessionID,
 			"status":     "QUEUED",
@@ -59,14 +138,9 @@ func CreatePrintJob(db *pgxpool.Pool, storage *utils.Storage) fiber.Handler {
 	}
 }
 
-// GetPrintJob gets the status of a print job
-func GetPrintJob(db *pgxpool.Pool) fiber.Handler {
-	return func(c *fiber.Ctx) error {
-		id := c.Params("id")
-		_, parseErr := uuid.Parse(id)
-		if parseErr != nil {
-			return utils.Error(c, fiber.StatusBadRequest, "invalid print job ID")
-		}
+func GetPrintJob(db *pgxpool.Pool) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		id := c.Param("id")
 
 		var sessionID, deviceID, printType, status, printerName, errorMessage string
 		var copies int
@@ -76,10 +150,11 @@ func GetPrintJob(db *pgxpool.Pool) fiber.Handler {
 			"SELECT id, session_id, device_id, print_type, copies, status, printer_name, error_message, created_at, printed_at FROM print_jobs WHERE id = $1",
 			id).Scan(&id, &sessionID, &deviceID, &printType, &copies, &status, &printerName, &errorMessage, &createdAt, &printedAt)
 		if err != nil {
-			return utils.Error(c, fiber.StatusNotFound, "print job not found")
+			utils.Error(c, 404, "print job not found")
+			return
 		}
 
-		return utils.Success(c, fiber.Map{
+		utils.Success(c, gin.H{
 			"id":            id,
 			"session_id":    sessionID,
 			"device_id":     deviceID,
@@ -94,22 +169,18 @@ func GetPrintJob(db *pgxpool.Pool) fiber.Handler {
 	}
 }
 
-// UpdatePrintJobStatus updates print job status
-func UpdatePrintJobStatus(db *pgxpool.Pool) fiber.Handler {
-	return func(c *fiber.Ctx) error {
-		id := c.Params("id")
-		_, parseErr := uuid.Parse(id)
-		if parseErr != nil {
-			return utils.Error(c, fiber.StatusBadRequest, "invalid print job ID")
-		}
+func UpdatePrintJobStatus(db *pgxpool.Pool) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		id := c.Param("id")
 
 		var req struct {
-			Status       string `json:"status"`
+			Status       string `json:"status" binding:"required"`
 			PrinterName  string `json:"printer_name"`
 			ErrorMessage string `json:"error_message"`
 		}
-		if bodyErr := c.BodyParser(&req); bodyErr != nil {
-			return utils.Error(c, fiber.StatusBadRequest, "invalid request body")
+		if err := c.ShouldBindJSON(&req); err != nil {
+			utils.Error(c, 400, "invalid request body")
+			return
 		}
 
 		if req.Status == "PRINTED" {
@@ -117,27 +188,29 @@ func UpdatePrintJobStatus(db *pgxpool.Pool) fiber.Handler {
 				"UPDATE print_jobs SET status = $1, printer_name = $2, printed_at = NOW() WHERE id = $3",
 				req.Status, req.PrinterName, id)
 			if err != nil {
-				return utils.Error(c, fiber.StatusInternalServerError, "failed to update")
+				utils.Error(c, 500, "failed to update")
+				return
 			}
 		} else {
 			_, err := db.Exec(context.Background(),
 				"UPDATE print_jobs SET status = $1, printer_name = $2, error_message = $3 WHERE id = $4",
 				req.Status, req.PrinterName, req.ErrorMessage, id)
 			if err != nil {
-				return utils.Error(c, fiber.StatusInternalServerError, "failed to update")
+				utils.Error(c, 500, "failed to update")
+				return
 			}
 		}
 
-		return utils.Message(c, "print job updated")
+		utils.Message(c, "print job updated")
 	}
 }
 
-// ListPrintJobs lists all print jobs for a merchant
-func ListPrintJobs(db *pgxpool.Pool) fiber.Handler {
-	return func(c *fiber.Ctx) error {
+func ListPrintJobs(db *pgxpool.Pool) gin.HandlerFunc {
+	return func(c *gin.Context) {
 		merchantID := getMerchantID(c)
 		if merchantID == "" {
-			return utils.Error(c, fiber.StatusBadRequest, "merchant_id required")
+			utils.Error(c, 400, "merchant_id required")
+			return
 		}
 
 		rows, err := db.Query(context.Background(),
@@ -148,17 +221,18 @@ func ListPrintJobs(db *pgxpool.Pool) fiber.Handler {
 			 ORDER BY p.created_at DESC LIMIT 50`,
 			merchantID)
 		if err != nil {
-			return utils.Error(c, fiber.StatusInternalServerError, "failed to fetch print jobs")
+			utils.Error(c, 500, "failed to fetch print jobs")
+			return
 		}
 		defer rows.Close()
 
-		var jobs []fiber.Map
+		var jobs []gin.H
 		for rows.Next() {
 			var id, sessionID, deviceID, printType, status, printerName, errorMessage string
 			var copies int
-			var createdAt, printedAt string
+			var createdAt, printedAt *time.Time
 			rows.Scan(&id, &sessionID, &deviceID, &printType, &copies, &status, &printerName, &errorMessage, &createdAt, &printedAt)
-			jobs = append(jobs, fiber.Map{
+			jobs = append(jobs, gin.H{
 				"id":            id,
 				"session_id":    sessionID,
 				"device_id":     deviceID,
@@ -172,36 +246,33 @@ func ListPrintJobs(db *pgxpool.Pool) fiber.Handler {
 			})
 		}
 
-		return utils.Success(c, jobs)
+		utils.Success(c, jobs)
 	}
 }
 
-// Reprint creates a reprint job from an existing session
-func Reprint(db *pgxpool.Pool, storage *utils.Storage) fiber.Handler {
-	return func(c *fiber.Ctx) error {
-		sessionID := c.Params("id")
-		_, parseErr := uuid.Parse(sessionID)
-		if parseErr != nil {
-			return utils.Error(c, fiber.StatusBadRequest, "invalid session ID")
-		}
+func Reprint(db *pgxpool.Pool, storage *utils.Storage) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		sessionID := c.Param("id")
 
 		var deviceID string
 		err := db.QueryRow(context.Background(),
 			"SELECT device_id FROM photobooth_sessions WHERE id = $1", sessionID).Scan(&deviceID)
 		if err != nil {
-			return utils.Error(c, fiber.StatusNotFound, "session not found")
+			utils.Error(c, 404, "session not found")
+			return
 		}
 
 		printJobID := uuid.New().String()
-		_, execErr := db.Exec(context.Background(),
+		_, err = db.Exec(context.Background(),
 			"INSERT INTO print_jobs (id, session_id, device_id, print_type, copies, status) VALUES ($1, $2, $3, '4x6', 1, 'QUEUED')",
 			printJobID, sessionID, deviceID)
-		if execErr != nil {
-			log.Printf("Failed to create reprint job: %v", execErr)
-			return utils.Error(c, fiber.StatusInternalServerError, "failed to create reprint job")
+		if err != nil {
+			log.Printf("Failed to create reprint job: %v", err)
+			utils.Error(c, 500, "failed to create reprint job")
+			return
 		}
 
-		return c.Status(fiber.StatusCreated).JSON(fiber.Map{
+		c.JSON(201, gin.H{
 			"id":         printJobID,
 			"session_id": sessionID,
 			"status":     "QUEUED",
@@ -209,12 +280,12 @@ func Reprint(db *pgxpool.Pool, storage *utils.Storage) fiber.Handler {
 	}
 }
 
-// GetPendingPrintJobs gets pending print jobs for a device
-func GetPendingPrintJobs(db *pgxpool.Pool) fiber.Handler {
-	return func(c *fiber.Ctx) error {
+func GetPendingPrintJobs(db *pgxpool.Pool) gin.HandlerFunc {
+	return func(c *gin.Context) {
 		deviceID := c.Query("device_id")
 		if deviceID == "" {
-			return utils.Error(c, fiber.StatusBadRequest, "device_id required")
+			utils.Error(c, 400, "device_id required")
+			return
 		}
 
 		rows, err := db.Query(context.Background(),
@@ -225,124 +296,102 @@ func GetPendingPrintJobs(db *pgxpool.Pool) fiber.Handler {
 			 ORDER BY p.created_at LIMIT 10`,
 			deviceID)
 		if err != nil {
-			return utils.Error(c, fiber.StatusInternalServerError, "failed to fetch print jobs")
+			utils.Error(c, 500, "failed to fetch print jobs")
+			return
 		}
 		defer rows.Close()
 
-		var jobs []fiber.Map
+		var jobs []gin.H
 		for rows.Next() {
 			var id, sessionID, printType, finalImageURL string
 			var copies int
 			rows.Scan(&id, &sessionID, &printType, &copies, &finalImageURL)
-			jobs = append(jobs, fiber.Map{
-				"id":               id,
-				"session_id":       sessionID,
-				"print_type":       printType,
-				"copies":           copies,
-				"final_image_url":  finalImageURL,
+			jobs = append(jobs, gin.H{
+				"id":              id,
+				"session_id":      sessionID,
+				"print_type":      printType,
+				"copies":          copies,
+				"final_image_url": finalImageURL,
 			})
 		}
 
-		return utils.Success(c, jobs)
+		utils.Success(c, jobs)
 	}
 }
 
-// AutoPrintJob automatically creates a print job after session completion
-func AutoPrintJob(db *pgxpool.Pool, storage *utils.Storage) fiber.Handler {
-	return func(c *fiber.Ctx) error {
-		sessionID := c.Params("id")
-		_, parseErr := uuid.Parse(sessionID)
-		if parseErr != nil {
-			return utils.Error(c, fiber.StatusBadRequest, "invalid session ID")
-		}
+func AutoPrintJob(db *pgxpool.Pool, storage *utils.Storage) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		sessionID := c.Param("id")
 
 		var deviceID string
 		err := db.QueryRow(context.Background(),
 			"SELECT device_id FROM photobooth_sessions WHERE id = $1", sessionID).Scan(&deviceID)
 		if err != nil {
-			return utils.Error(c, fiber.StatusNotFound, "session not found")
+			utils.Error(c, 404, "session not found")
+			return
 		}
 
 		printJobID := uuid.New().String()
-		_, execErr := db.Exec(context.Background(),
+		_, err = db.Exec(context.Background(),
 			"INSERT INTO print_jobs (id, session_id, device_id, print_type, copies, status) VALUES ($1, $2, $3, '4x6', 1, 'QUEUED')",
 			printJobID, sessionID, deviceID)
-		if execErr != nil {
-			return utils.Error(c, fiber.StatusInternalServerError, "failed to create print job")
+		if err != nil {
+			utils.Error(c, 500, "failed to create print job")
+			return
 		}
 
-		// Start print flow simulation
-		go simulatePrintFlow(db, printJobID)
-
-		return c.Status(fiber.StatusCreated).JSON(fiber.Map{
+		c.JSON(201, gin.H{
 			"id":     printJobID,
 			"status": "QUEUED",
 		})
 	}
 }
 
-// simulatePrintFlow simulates the print job lifecycle
-func simulatePrintFlow(db *pgxpool.Pool, printJobID string) {
-	states := []string{"PREPARING", "SENDING", "PRINTING", "PRINT_COMPLETE"}
-	for _, state := range states {
-		time.Sleep(2 * time.Second)
-		_, err := db.Exec(context.Background(),
-			"UPDATE print_jobs SET status = $1, printer_name = 'Default Printer' WHERE id = $2",
-			state, printJobID)
-		if err != nil {
-			log.Printf("Print flow update failed: %v", err)
-			return
-		}
-	}
-}
-
-// GenerateSecureDownloadURL creates a time-limited download token
-func GenerateSecureDownloadURL(db *pgxpool.Pool) fiber.Handler {
-	return func(c *fiber.Ctx) error {
-		sessionID := c.Params("id")
-		_, parseErr := uuid.Parse(sessionID)
-		if parseErr != nil {
-			return utils.Error(c, fiber.StatusBadRequest, "invalid session ID")
-		}
+func GenerateSecureDownloadURL(db *pgxpool.Pool) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		sessionID := c.Param("id")
 
 		var finalImageURL string
 		err := db.QueryRow(context.Background(),
 			"SELECT final_image_url FROM photobooth_sessions WHERE id = $1",
 			sessionID).Scan(&finalImageURL)
 		if err != nil {
-			return utils.Error(c, fiber.StatusNotFound, "session not found")
+			utils.Error(c, 404, "session not found")
+			return
 		}
 
 		if finalImageURL == "" {
-			return utils.Error(c, fiber.StatusNotFound, "final image not ready")
+			utils.Error(c, 404, "final image not ready")
+			return
 		}
 
-		// Generate expiring token (24 hours)
 		token := uuid.New().String()
 		expiresAt := time.Now().Add(24 * time.Hour)
 
-		_, execErr := db.Exec(context.Background(),
+		_, err = db.Exec(context.Background(),
 			"INSERT INTO download_tokens (token, session_id, expires_at) VALUES ($1, $2, $3)",
 			token, sessionID, expiresAt)
-		if execErr != nil {
-			return utils.Error(c, fiber.StatusInternalServerError, "failed to generate token")
+		if err != nil {
+			utils.Error(c, 500, "failed to generate token")
+			return
 		}
 
-		return utils.Success(c, fiber.Map{
-			"download_url": fmt.Sprintf("%s/api/download/%s/secure?token=%s", getBaseURL(), sessionID, token),
+		baseURL := "https://klikku.arjism.com"
+		utils.Success(c, gin.H{
+			"download_url": fmt.Sprintf("%s/api/download/%s/secure?token=%s", baseURL, sessionID, token),
 			"expires_at":   expiresAt,
 		})
 	}
 }
 
-// ValidateDownloadToken validates a download token
-func ValidateDownloadToken(db *pgxpool.Pool, storage *utils.Storage) fiber.Handler {
-	return func(c *fiber.Ctx) error {
-		sessionID := c.Params("id")
+func ValidateDownloadToken(db *pgxpool.Pool, storage *utils.Storage) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		sessionID := c.Param("id")
 		token := c.Query("token")
 
 		if token == "" {
-			return utils.Error(c, fiber.StatusUnauthorized, "download token required")
+			utils.Error(c, 401, "download token required")
+			return
 		}
 
 		var expiresAt time.Time
@@ -350,33 +399,32 @@ func ValidateDownloadToken(db *pgxpool.Pool, storage *utils.Storage) fiber.Handl
 			"SELECT expires_at FROM download_tokens WHERE token = $1 AND session_id = $2",
 			token, sessionID).Scan(&expiresAt)
 		if err != nil {
-			return utils.Error(c, fiber.StatusUnauthorized, "invalid token")
+			utils.Error(c, 401, "invalid token")
+			return
 		}
 
 		if time.Now().After(expiresAt) {
-			return utils.Error(c, fiber.StatusUnauthorized, "download link expired")
+			utils.Error(c, 401, "download link expired")
+			return
 		}
 
-		// Serve image
 		var finalImageURL string
 		err = db.QueryRow(context.Background(),
 			"SELECT final_image_url FROM photobooth_sessions WHERE id = $1",
 			sessionID).Scan(&finalImageURL)
 		if err != nil {
-			return utils.Error(c, fiber.StatusNotFound, "session not found")
+			utils.Error(c, 404, "session not found")
+			return
 		}
 
 		data, err := storage.Download("finals", finalImageURL)
 		if err != nil {
-			return utils.Error(c, fiber.StatusNotFound, "image not found")
+			utils.Error(c, 404, "image not found")
+			return
 		}
 
-		c.Set("Content-Type", "image/jpeg")
-		c.Set("Content-Disposition", "inline; filename=\"photobooth.jpg\"")
-		return c.Send(data)
+		c.Header("Content-Type", "image/jpeg")
+		c.Header("Content-Disposition", "inline; filename=\"photobooth.jpg\"")
+		c.Data(200, "image/jpeg", data)
 	}
-}
-
-func getBaseURL() string {
-	return "http://localhost:8083"
 }

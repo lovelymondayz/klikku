@@ -1,23 +1,25 @@
 package middleware
 
 import (
-	"github.com/gofiber/fiber/v2"
+	"github.com/gin-gonic/gin"
 	"klikku/internal/utils"
 )
 
-func TenantMiddleware(c *fiber.Ctx) error {
-	role := c.Locals("role").(string)
-	merchantID := c.Locals("merchant_id").(string)
+func TenantMiddleware(c *gin.Context) {
+	role, _ := c.Get("role")
+	merchantID, _ := c.Get("merchant_id")
 
-	// Super Admin bypasses tenant isolation
 	if role == "SUPER_ADMIN" {
-		return c.Next()
+		c.Next()
+		return
 	}
 
-	if merchantID == "" {
-		return utils.Error(c, fiber.StatusForbidden, "no merchant context")
+	if merchantID == nil || merchantID.(string) == "" {
+		utils.Error(c, 403, "no merchant context")
+		c.Abort()
+		return
 	}
 
-	c.Locals("tenant_id", merchantID)
-	return c.Next()
+	c.Set("tenant_id", merchantID.(string))
+	c.Next()
 }
